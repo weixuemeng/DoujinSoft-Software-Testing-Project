@@ -17,6 +17,7 @@
                 <version>3.2.0</version>
                 <executions>
                     <execution>
+                        <id>add-source</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
@@ -73,10 +74,16 @@
             </plugin>
 
             <!-- JUnit Tests During Maven Build -->
-<!--            <plugin>-->
-<!--                <artifactId>maven-surefire-plugin</artifactId>-->
-<!--                <version>3.5.3</version>-->
-<!--            </plugin>-->
+            <!--            <plugin>-->
+            <!--                <artifactId>maven-surefire-plugin</artifactId>-->
+            <!--                <version>3.5.3</version>-->
+            <!--            </plugin>-->
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.3</version>
+            </plugin>
 
         </plugins>
 
@@ -131,12 +138,12 @@
             <version>5.9.3</version>
             <scope>test</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.junit.platform</groupId>-->
-<!--            <artifactId>junit-platform-runner</artifactId>-->
-<!--            <version>1.2.0</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>org.junit.platform</groupId>-->
+        <!--            <artifactId>junit-platform-runner</artifactId>-->
+        <!--            <version>1.2.0</version>-->
+        <!--            <scope>test</scope>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
@@ -144,12 +151,20 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Dependency Management  -->
+        <dependency>
+            <groupId>org.junit</groupId>
+            <artifactId>junit-bom</artifactId>
+            <version>5.9.3</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+
         <!-- Mockito for mocking in tests -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>4.11.0</version>
-            <scope>test</scope>
+            <version>5.17.0</version>
         </dependency>
 
         <!-- Selenium Java for UI tests -->
