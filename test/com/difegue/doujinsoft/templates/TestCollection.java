@@ -21,7 +21,6 @@ public class TestCollection {
     // test GetMioSQL
     @Test
     public void testGetMioSQLWithEmptyMio() {
-//        collection.id = "0";
         collection.mios = new String[]{};
         Assertions.assertEquals("()", collection.getMioSQL());
     }
