@@ -27,6 +27,7 @@ public class TestGame {
         Game game = new Game(result);
         inOrder.verify(result, times(1)).getString("previewPic");
         inOrder.verify(result, times(1)).getBoolean("isNsfw");
+        inOrder.verifyNoMoreInteractions();
         Assertions.assertEquals(previewPic,game.preview);
         Assertions.assertEquals(isNsfw,game.isNsfw);
     }
