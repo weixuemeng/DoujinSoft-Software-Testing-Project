@@ -17,12 +17,13 @@ public class MioCompress {
     public static void compressMio(File orig, File dest, String desiredName) throws IOException {
 
         String zipFileName = dest.getAbsolutePath();
-
+        // Creates a file output stream to write to the file(zipFileName ) with the specified name.
+        // Creates a new ZIP output stream
         ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFileName));
         zos.putNextEntry(new ZipEntry(desiredName));
 
-        byte[] bytes = Files.readAllBytes(orig.toPath());
-        zos.write(bytes, 0, bytes.length);
+        byte[] bytes = Files.readAllBytes(orig.toPath()); // read the byte from the orig
+        zos.write(bytes, 0, bytes.length); // write to
         zos.closeEntry();
         zos.close();
     }
