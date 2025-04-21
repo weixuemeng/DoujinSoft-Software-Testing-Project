@@ -8,13 +8,15 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InOrder;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
+import java.awt.image.RenderedImage;
+import java.io.*;
 import java.util.Base64;
 import java.util.List;
 import java.util.Random;
@@ -135,12 +137,13 @@ public class TestMioUtils {
         }
     }
 
-    @Test
-    public void testBase64GamePreview() {
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
+    public void testBase64GamePreview(int color) {
         byte[] mioFile = new byte[]{};
         try (MockedConstruction<GameEdit> gameEdit = mockConstruction(GameEdit.class,
                 (gameMeta, context) -> {
-                    when(gameMeta.getPreviewPixel(anyInt(), anyInt())).thenReturn(new Random().nextInt(256));
+                    when(gameMeta.getPreviewPixel(anyInt(), anyInt())).thenReturn(color);
                 })){
             MioUtils.getBase64GamePreview(mioFile);
             List<GameEdit> gameEdits = gameEdit.constructed();
@@ -190,6 +193,17 @@ public class TestMioUtils {
         Assertions.assertEquals(image.getRGB(1, 0), decodedImage.getRGB(1, 0));
         Assertions.assertEquals(image.getRGB(1, 1), decodedImage.getRGB(1, 1));
         Assertions.assertEquals(image.getRGB(0, 1), decodedImage.getRGB(0, 1));
+    }
+
+    // to meet branch coverage, simulate io interruptions
+    @Test
+    public void testImgToBase64StringWithIOInterruptions() {
+        BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        image.setRGB(0, 0, new Random().nextInt(256));
+        try (MockedStatic<ImageIO> io = mockStatic(ImageIO.class)) {
+            io.when(() -> ImageIO.write(any(RenderedImage.class), anyString(), any(OutputStream.class))).thenThrow(new IOException());
+            Assertions.assertThrows(UncheckedIOException.class, () -> {MioUtils.imgToBase64String(image, "png");});
+        }
     }
 
 }

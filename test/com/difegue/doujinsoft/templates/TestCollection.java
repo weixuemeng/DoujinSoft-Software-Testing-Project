@@ -74,6 +74,12 @@ public class TestCollection {
         Assertions.assertEquals(MioUtils.Types.GAME, collection.getType());
     }
 
+    @Test
+    public void testGetTypeWithNullType() {
+        collection.collection_type = null;
+        Assertions.assertEquals(MioUtils.Types.GAME, collection.getType());
+    }
+
     // test addMioHash
     @Test
     public void testAddMioHashToNullMio() {
