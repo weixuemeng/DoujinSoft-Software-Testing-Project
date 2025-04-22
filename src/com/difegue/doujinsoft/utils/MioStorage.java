@@ -1,5 +1,6 @@
 package com.difegue.doujinsoft.utils;
 
+
 import com.xperia64.diyedit.FileByteOperations;
 import com.xperia64.diyedit.editors.GameEdit;
 import com.xperia64.diyedit.editors.MangaEdit;
@@ -38,7 +39,7 @@ public class MioStorage {
 
     }
 
-    private static String convertByteToHex(byte[] byteData) {
+    public static String convertByteToHex(byte[] byteData) {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < byteData.length; i++) {
@@ -63,6 +64,7 @@ public class MioStorage {
                     String cartridgeId = metadata.getCartridgeId();
                     int type = mioData.length;
                     PreparedStatement insertQuery = parseMioBase(metadata, hash, ID, creatorId, connection, type);
+
 
                     // The file is game, manga or record, depending on its size.
                     if (mioData.length == MioUtils.Types.GAME) {

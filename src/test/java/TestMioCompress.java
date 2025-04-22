@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,7 +36,9 @@ public class TestMioCompress {
     public void setUp() throws IOException{
         mioCompress = new MioCompress();
         validOrig  = tempDir.resolve("orig.txt").toFile(); // create valid orig file
-        Files.write(validOrig.toPath(), "Content in orig.txt".getBytes()); // write content to orig
+        String content =  "Content in orig.txt";
+//        System.out.println(content.getBytes().length);  // 19 bytes
+        Files.write(validOrig.toPath(), content.getBytes()); // write content to orig
         validDest = tempDir.resolve("zipedOrig.zip").toFile();
         validDesiredName = "content.txt";
 
@@ -66,21 +69,33 @@ public class TestMioCompress {
 //    }
     @Test
     @Tag("orig-null")
+    @Tag("orig-EP")
     public void testCompressMioOrigNull()  {
         assertThrows(NullPointerException.class,
                 () -> MioCompress.compressMio (null, validDest, validDesiredName));
     }
     @Test
-    @Tag("orig-each")
+    @Tag("orig-notexist")
+    @Tag("orig-EP")
     // FileNotFoundException ( subclass of IOException)
     public void testCompressMioOrigInvalid ()  {
         File nonExistent =tempDir.resolve("fakeOrig.txt").toFile();
-        assertThrows(IOException.class,
+        assertThrows(FileNotFoundException.class,
                 () -> MioCompress.compressMio (nonExistent, validDest, validDesiredName));
     }
 
     @Test
+    @Tag("orig-Dir")
+    @Tag("orig-EP")
+    void testOrigIsDirectory() {
+        File orig = tempDir.toFile();
+        assertThrows(FileNotFoundException.class,
+                () -> MioCompress.compressMio(orig, validDest, validDesiredName));
+    }
+
+    @Test
     @Tag("orig-unreadable")
+    @Tag("orig-EP")
     public void testCompressMioOrigUnreadable() throws IOException {
         Path path = tempDir.resolve("unreadableOrig.txt");
         File unreadableOrig = path.toFile();
@@ -106,24 +121,81 @@ public class TestMioCompress {
     }
 
     @Test
-    @Tag("orig-valid")
-    void testOrigValid() throws IOException {
+    @Tag("dest-null")
+    @Tag("dest-EP")
+    public void testCompressMioDestNull()  {
+        assertThrows(NullPointerException.class,
+                () -> MioCompress.compressMio (validOrig, null, validDesiredName));
+    }
+
+    @Test
+    @Tag("dest-Dir")
+    @Tag("dest-EP")
+    void testDestIsDirectory() {
+        File invalidDest = tempDir.toFile();
+        assertThrows(FileNotFoundException.class,
+                () -> MioCompress.compressMio(validOrig, invalidDest, validDesiredName));
+    }
+
+    @Test
+    @Tag("dest-Unwritable")
+    @Tag("dest-EP")
+    void testUnwritableDest() throws IOException {
+        File readOnlyDest = tempDir.resolve("readOnlyDest.zip").toFile();
+        readOnlyDest.setReadOnly();
+
+        assertThrows(FileNotFoundException.class,
+                () -> MioCompress.compressMio(validOrig, readOnlyDest, validDesiredName));
+    }
+
+    @Test
+    @Tag("desiredName-null")
+    @Tag("desiredName-EP")
+    public void testCompressMioDesiredNameNull()  {
+        assertThrows(NullPointerException.class,
+                () -> MioCompress.compressMio (validOrig, validDest, null));
+    }
+
+    @Test
+    @Tag("desiredName-length-LARGE")
+    public void testDesiredName_MaxLength()  {
+        // Create a 65,536-character string (1 over limit)
+        String tooLongName = "a".repeat(0xFFFF + 1);  // 65,536 chars
+
+        assertThrows(IllegalArgumentException.class,
+                () -> MioCompress.compressMio(validOrig, validDest, tooLongName));
+    }
+
+
+    @Test
+    @Tag("orig-EP")
+    @Tag("dest-EP")
+    @Tag("desiredName-EP")
+    @Tag("desiredName-length>0")
+    @Tag("Orig-readable")
+    @Tag("Dest-writeable")
+    void testValid() throws IOException {
+        System.out.println(validDest.length());
         MioCompress.compressMio(validOrig, validDest,validDesiredName);
 
-//        String zipFileName = dest.getAbsolutePath();
-//        // Creates a file output stream to write to the file(zipFileName ) with the specified name.
-//        // Creates a new ZIP output stream
-//        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFileName));
-//        zos.putNextEntry(new ZipEntry(desiredName));
-//
-//        byte[] bytes = Files.readAllBytes(orig.toPath()); // read the byte from the orig
-//        zos.write(bytes, 0, bytes.length); // write to
-//        zos.closeEntry();
-//        zos.close();
+        // Verify ZIP file exists and is not empty
+        System.out.println(validDest.length());
+        assertTrue(validDest.length() > 0);
 
+        //Verify ZIP contains the expected entry with correct content
+        ZipFile zip = new ZipFile(validDest);
+        ZipEntry entry = zip.getEntry(validDesiredName);
+        assertNotNull(entry);
 
-
+        // Verify entry content matches original file
+        String zipContent = new String(zip.getInputStream(entry).readAllBytes());
+        String origContent = Files.readString(validOrig.toPath());
+        assertEquals(origContent, zipContent);
     }
+
+
+
+
 
 
 
