@@ -15,8 +15,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,6 +27,25 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.*;
 
 public class TestServerInit {
+
+    public static String getSQLQueryToFindTable(String tableName) {
+        return "SELECT name FROM sqlite_master WHERE type='table' AND name='" + tableName + "';";
+    }
+
+    // a basic check if tables are created
+    // consider adding more later
+    public void assertTablesExist() {
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + tempDir + "/mioDatabase.sqlite")) {
+            Statement statement = connection.createStatement();
+            Assertions.assertTrue(statement.executeQuery(getSQLQueryToFindTable("Games")).next());
+            Assertions.assertTrue(statement.executeQuery(getSQLQueryToFindTable("Manga")).next());
+            Assertions.assertTrue(statement.executeQuery(getSQLQueryToFindTable("Records")).next());
+            Assertions.assertTrue(statement.executeQuery(getSQLQueryToFindTable("Surveys")).next());
+            Assertions.assertTrue(statement.executeQuery(getSQLQueryToFindTable("Friends")).next());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     ServerInit serverInit;
     ServletContextEvent event;
@@ -78,6 +99,7 @@ public class TestServerInit {
             inOrder.verify(scheduler, times(1)).scheduleAtFixedRate(any(Runnable.class), eq((long) 0), eq((long) 1), eq(TimeUnit.HOURS));
 
             Assertions.assertTrue(Files.exists(tempDir.resolve("mioDatabase.sqlite")));
+            assertTablesExist();
             Assertions.assertTrue(Files.exists(Paths.get(tempDir.toString(), "mio")));
 
             // MioStorage.ScanForNewMioFiles(dataDir, SQLog), but no mio file, so no folder should be created
@@ -108,6 +130,7 @@ public class TestServerInit {
             inOrder.verify(scheduler, times(1)).scheduleAtFixedRate(any(Runnable.class), eq((long) 0), eq((long) 1), eq(TimeUnit.HOURS));
 
             Assertions.assertTrue(Files.exists(tempDir.resolve("mioDatabase.sqlite")));
+            assertTablesExist();
             Assertions.assertTrue(Files.exists(Paths.get(tempDir.toString(), "mio")));
 
             // MioStorage.ScanForNewMioFiles(dataDir, SQLog), but no mio file, so no folder should be created
@@ -144,6 +167,7 @@ public class TestServerInit {
             inOrder.verify(scheduler, times(1)).scheduleAtFixedRate(any(Runnable.class), eq((long) 0), eq((long) 1), eq(TimeUnit.HOURS));
 
             Assertions.assertTrue(Files.exists(tempDir.resolve("mioDatabase.sqlite")));
+            assertTablesExist();
             Assertions.assertTrue(Files.exists(Paths.get(tempDir.toString(), "mio"))); //should keep
 
             // MioStorage.ScanForNewMioFiles(dataDir, SQLog), but no mio file, so no folder should be created
