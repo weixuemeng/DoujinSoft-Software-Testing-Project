@@ -50,6 +50,7 @@ public class MioStorage {
     }
 
     public static void ScanForNewMioFiles(String dataDir, Logger logger) throws SQLException {
+        System.out.println("here");
         File[] files = new File(dataDir + "/mio/").listFiles();
         System.out.println("here");
 
