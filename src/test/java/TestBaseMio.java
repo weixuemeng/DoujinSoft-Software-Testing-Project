@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 //import org.junit.jupiter.params.provider.CsvSource;
 import com.xperia64.diyedit.metadata.Metadata;
 import com.difegue.doujinsoft.utils.MioUtils;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,8 +50,8 @@ public class TestBaseMio {
     @Test
     @Tag("EP_NON_NULL")
     @Tag("Branch_TYPE_GAME")
-    public void testConstructorMetadataGAME(){
-        byte[] file = createFileOfLength(65536);
+    public void testConstructorMetadataGAME(){ // fail
+        byte[] file = createFileOfLength(MioUtils.Types.GAME);
         Metadata metadata = new Metadata(file);
         metadata.setName("GAME header");
         metadata.setBrand("GAME brand");
@@ -57,6 +59,7 @@ public class TestBaseMio {
         metadata.setTimestamp(20);
         String description = "This is a description for metadata type GAME";
         metadata.setDescription(description);
+        System.out.println(metadata.getDescription());
         String expectedMioID = "G-"+MioUtils.computeMioID(metadata);
         BaseMio baseMio = new BaseMio(metadata);
         assertEquals(expectedMioID, baseMio.mioID);
@@ -67,7 +70,7 @@ public class TestBaseMio {
     @Test
     @Tag("Branch_TYPE_MANGA")
     public void testConstructorMetadataMANGA(){
-        byte[] file = createFileOfLength(14336);
+        byte[] file = createFileOfLength(MioUtils.Types.MANGA);
         Metadata metadata = new Metadata(file);
         metadata.setName("MANGA header");
         metadata.setBrand("MANGA brand");
@@ -75,7 +78,9 @@ public class TestBaseMio {
         metadata.setTimestamp(30);
         String description = "This is a description for metadata type MANGA";
         metadata.setDescription(description);
+//        System.out.println(metadata.file.length);
         String expectedMioID = "M-"+MioUtils.computeMioID(metadata);
+
         BaseMio baseMio = new BaseMio(metadata);
         assertEquals(expectedMioID, baseMio.mioID);
         assertEquals(description.substring(0, 18), baseMio.mioDesc1);
@@ -86,7 +91,7 @@ public class TestBaseMio {
     @Tag("Branch_TYPE_RECORD")
     @Tag("Branch_TYPE_Description_more_than_19")
     public void testConstructorMetadataRECORD(){
-        byte[] file = createFileOfLength(8192);
+        byte[] file = createFileOfLength(MioUtils.Types.RECORD);
         Metadata metadata = new Metadata(file);
         metadata.setName("RECORD header");
         metadata.setBrand("RECORD brand");
@@ -197,24 +202,62 @@ public class TestBaseMio {
         assertEquals(null, baseMio.specialBrand);
     }
 
-//    @PrameterizedTest
-//    @ValueSource(ids = {"themId","wario","nintendo"})
-//    public void testResultSetSpecialBrand(String id) throws SQLException{
-//        when(resultSet.getString("colorLogo")).thenReturn("brownLogo");
-//        when(resultSet.getString("description")).thenReturn("   ");
-//        when(resultSet.getString("name")).thenReturn("basename");
-//        when(resultSet.getString("id")).thenReturn(id);
-//
-//        // crease baseMio
-//        BaseMio baseMio  = new BaseMio(resultSet);
-//
-//        // color -> same
-//        assertEquals( "brownLogo", baseMio.colorLogo);
-//        // description > 18
-//        assertEquals("No Description." ,baseMio.mioDesc1);
-//        assertEquals(null ,baseMio.mioDesc2);
-//        assertEquals("basename", baseMio.name);
-//        assertEquals("theme", baseMio.specialBrand); // special brand
-//    }
+    @ParameterizedTest
+    @ValueSource(strings = {"themId","them","theme"})
+    public void testResultSetSpecialBrandTheme(String id) throws SQLException{
+        when(resultSet.getString("colorLogo")).thenReturn("brownLogo");
+        when(resultSet.getString("description")).thenReturn("   ");
+        when(resultSet.getString("name")).thenReturn("basename");
+        when(resultSet.getString("id")).thenReturn(id);
+
+        // crease baseMio
+        BaseMio baseMio  = new BaseMio(resultSet);
+
+        // color -> same
+        assertEquals( "brownLogo", baseMio.colorLogo);
+        // description > 18
+        assertEquals("No Description." ,baseMio.mioDesc1);
+        assertEquals("" ,baseMio.mioDesc2);
+        assertEquals("basename", baseMio.name);
+        assertEquals("theme", baseMio.specialBrand); // special brand
+    }
+    @ParameterizedTest
+    @ValueSource(strings = {"wari","wario"})
+    public void testResultSetSpecialBrandWario(String id) throws SQLException{
+        when(resultSet.getString("colorLogo")).thenReturn("brownLogo");
+        when(resultSet.getString("description")).thenReturn("   ");
+        when(resultSet.getString("name")).thenReturn("basename");
+        when(resultSet.getString("id")).thenReturn(id);
+
+        // crease baseMio
+        BaseMio baseMio  = new BaseMio(resultSet);
+
+        // color -> same
+        assertEquals( "brownLogo", baseMio.colorLogo);
+        // description > 18
+        assertEquals("No Description." ,baseMio.mioDesc1);
+        assertEquals("" ,baseMio.mioDesc2);
+        assertEquals("basename", baseMio.name);
+        assertEquals("wario", baseMio.specialBrand); // special brand
+    }
+    @ParameterizedTest
+    @ValueSource(strings = {"nintendo","ninten"})
+    public void testResultSetSpecialBrandNintendo(String id) throws SQLException{
+        when(resultSet.getString("colorLogo")).thenReturn("brownLogo");
+        when(resultSet.getString("description")).thenReturn("   ");
+        when(resultSet.getString("name")).thenReturn("basename");
+        when(resultSet.getString("id")).thenReturn(id);
+
+        // crease baseMio
+        BaseMio baseMio  = new BaseMio(resultSet);
+
+        // color -> same
+        assertEquals( "brownLogo", baseMio.colorLogo);
+        // description > 18
+        assertEquals("No Description." ,baseMio.mioDesc1);
+        assertEquals("" ,baseMio.mioDesc2);
+        assertEquals("basename", baseMio.name);
+        assertEquals("nintendo", baseMio.specialBrand); // special brand
+    }
 
 }

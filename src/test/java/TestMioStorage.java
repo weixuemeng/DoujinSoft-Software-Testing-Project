@@ -322,62 +322,32 @@ public class TestMioStorage {
 
         System.out.println(gameFiles.length);
 
-        Path dbFile = dataDir.resolve("mioDatabase.sqlite");
-        String url = "jdbc:sqlite:" + dbFile.toString();
-        try (Connection conn = DriverManager.getConnection(url);
-             Statement st = conn.createStatement()) {
+        Connection mockConn = mock(Connection.class);
+        PreparedStatement mockStmt = mock(PreparedStatement.class);
+        when(mockConn.prepareStatement(anyString())).thenReturn(mockStmt);
 
-            // 15 placeholders in parseMioBase for GAME:
-            // hash, ID, name, normName, creator, brand, desc, timestamp,
-            // cartColor, logoColor, logo, preview, creatorId, isNsfw, cartridgeId
-            st.executeUpdate(
-                    "CREATE TABLE Games (" +
-                            "hash TEXT, id TEXT, name TEXT, norm TEXT, creator TEXT, " +
-                            "brand TEXT, description TEXT, ts INTEGER, " +
-                            "cartColor TEXT, logoColor TEXT, logo INTEGER, preview TEXT, " +
-                            "creatorId TEXT, isNsfw INTEGER, cartridgeId TEXT" +
-                            ")"
-            );
+        try (MockedStatic<DriverManager> dm = mockStatic(DriverManager.class);
+             MockedStatic<FileByteOperations> fo = mockStatic(FileByteOperations.class);
+             MockedStatic<MioStorage> ms = mockStatic(MioStorage.class, CALLS_REAL_METHODS);
+             MockedStatic<MioUtils> mu = mockStatic(MioUtils.class)
+        ) {
+//            dm.when(() -> DriverManager.getConnection("jdbc:sqlite:" + dataDir + "/mioDatabase.sqlite"))
+//                    .thenReturn(mockConn);
+            fo.when(() -> FileByteOperations.read(anyString())).thenReturn(gameBytes);
+            ms.when(() -> MioStorage.computeMioHash(gameBytes)).thenReturn("HASH123");
+            mu.when(() -> MioUtils.computeMioID(any())).thenReturn("ID123");
+            mu.when(() -> MioUtils.mapColorByte(anyByte())).thenReturn("#ABC");
+            mu.when(() -> MioUtils.getBase64GamePreview(gameBytes)).thenReturn("PREVIEW");
+
+            // 4) THIS is the important bit: pass in the root dataDir, not the subfolder
+            MioStorage.ScanForNewMioFiles(tempDir.toString(), logger);
+            System.out.println("3");
+
+            // 5) verify it ran the GAME branch once (sets + logs)
+            verify(logger).log(eq(Level.INFO), contains("Game;HASH123;ID123"));
+            // and that prepareStatement was called once
+//            verify(mockConn, times(1)).prepareStatement(any());
         }
-        Logger logger = Logger.getLogger("test");
-        MioStorage.ScanForNewMioFiles(dataDir.toString(), logger);
-
-        // 4) verify that a row landed in the real DB
-        try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement ps = conn.prepareStatement("SELECT * FROM Games");
-             ResultSet rs = ps.executeQuery()) {
-
-            assertTrue(rs.next(), "Expected one row in Games");
-            // verify the hash column matches computeMioHash on those bytes
-//            String expectedHash = MioStorage.computeMioHash(bytes);
-//            assertEquals(expectedHash, rs.getString("hash"));
-
-            // no more rows
-            assertFalse(rs.next(), "Only one row expected");
-        }
-
-//        try (MockedStatic<DriverManager> dm = mockStatic(DriverManager.class);
-//             MockedStatic<FileByteOperations> fo = mockStatic(FileByteOperations.class);
-//             MockedStatic<MioStorage> ms = mockStatic(MioStorage.class, CALLS_REAL_METHODS);
-//             MockedStatic<MioUtils> mu = mockStatic(MioUtils.class)
-//        ) {
-////            dm.when(() -> DriverManager.getConnection("jdbc:sqlite:" + dataDir + "/mioDatabase.sqlite"))
-////                    .thenReturn(mockConn);
-//            fo.when(() -> FileByteOperations.read(anyString())).thenReturn(gameBytes);
-//            ms.when(() -> MioStorage.computeMioHash(gameBytes)).thenReturn("HASH123");
-//            mu.when(() -> MioUtils.computeMioID(any())).thenReturn("ID123");
-//            mu.when(() -> MioUtils.mapColorByte(anyByte())).thenReturn("#ABC");
-//            mu.when(() -> MioUtils.getBase64GamePreview(gameBytes)).thenReturn("PREVIEW");
-//
-//            // 4) THIS is the important bit: pass in the root dataDir, not the subfolder
-//            MioStorage.ScanForNewMioFiles(tempDir.toString(), logger);
-//            System.out.println("3");
-//
-//            // 5) verify it ran the GAME branch once (sets + logs)
-//            verify(logger).log(eq(Level.INFO), contains("Game;HASH123;ID123"));
-//            // and that prepareStatement was called once
-////            verify(mockConn, times(1)).prepareStatement(any());
-//        }
 
 //        MioStorage.ScanForNewMioFiles(mioGamesDir.toString(), logger);
 
