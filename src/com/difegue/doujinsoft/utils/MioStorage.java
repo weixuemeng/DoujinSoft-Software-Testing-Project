@@ -51,6 +51,7 @@ public class MioStorage {
 
     public static void ScanForNewMioFiles(String dataDir, Logger logger) throws SQLException {
         File[] files = new File(dataDir + "/mio/").listFiles();
+        System.out.println("here");
 
         for (File f : files) {
             if (!f.isDirectory()) {
@@ -64,6 +65,7 @@ public class MioStorage {
                     String cartridgeId = metadata.getCartridgeId();
                     int type = mioData.length;
                     PreparedStatement insertQuery = parseMioBase(metadata, hash, ID, creatorId, connection, type);
+                    System.out.println("here");
 
 
                     // The file is game, manga or record, depending on its size.
@@ -79,6 +81,8 @@ public class MioStorage {
                         insertQuery.setString(13, creatorId);
                         insertQuery.setBoolean(14, false);
                         insertQuery.setString(15, cartridgeId);
+
+                        System.out.println("here");
 
                         logger.log(Level.INFO, "Game;" + hash + ";" + ID + ";" + game.getName() + "\n");
                     }
