@@ -52,7 +52,7 @@ public class MioStorage {
     public static void ScanForNewMioFiles(String dataDir, Logger logger) throws SQLException {
         System.out.println("here");
         File[] files = new File(dataDir + "/mio/").listFiles();
-        System.out.println("here");
+        System.out.println(dataDir + "/mio/");
 
         for (File f : files) {
             if (!f.isDirectory()) {
@@ -66,12 +66,13 @@ public class MioStorage {
                     String cartridgeId = metadata.getCartridgeId();
                     int type = mioData.length;
                     PreparedStatement insertQuery = parseMioBase(metadata, hash, ID, creatorId, connection, type);
-                    System.out.println("here");
+                    System.out.println(mioData.length);
 
 
                     // The file is game, manga or record, depending on its size.
                     if (mioData.length == MioUtils.Types.GAME) {
                         GameEdit game = new GameEdit(mioData);
+                        System.out.println("game");
 
                         // Game-specific: add the preview picture and isNsfw flag.
                         // CreatorID is added here as it was put in later - ditto for Manga/Records.
