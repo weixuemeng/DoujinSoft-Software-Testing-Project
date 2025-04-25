@@ -1,4 +1,4 @@
-package test.java;
+package com.difegue.doujinsoft;
 
 import org.junit.jupiter.api.*;
 import org.openqa.selenium.By;
@@ -89,7 +89,7 @@ public class TestAdminServlet {
     }
 
     @Test
-    void testPostInValidCollection(){
+    void testPostInValidCollection() throws InterruptedException {
         webDriver.get(BASE_URL);
         WebElement collectionType = webDriver.findElement(By.id("collection_type"));
         WebElement collectionId = webDriver.findElement(By.id("collection_id"));
