@@ -1,9 +1,6 @@
 package test.java;
 
 import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -12,17 +9,13 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.io.File;
-import java.nio.file.Path;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-public class testAdminServlet {
+public class TestAdminServlet {
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_PASSWORD = "VO£w790LL3[D(ijxM|GN";
     final String BASE_URL   = "https://"+ ADMIN_USERNAME +":"+ ADMIN_PASSWORD +"@doujinsoft.yihang.one/manage";
