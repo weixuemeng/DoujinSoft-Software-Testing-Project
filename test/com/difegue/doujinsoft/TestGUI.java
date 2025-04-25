@@ -56,5 +56,10 @@ public class TestGUI {
     @Test
     public void testAboutPage() {
         driver.get("https://diy.tvc-16.science/about");
+//            String ADMIN_USERNAME = "admin";
+//    String ADMIN_PASSWORD = "VO£w790LL3[D(ijxM|GN";
+//        String BASE_URL   = "https://"+ ADMIN_USERNAME +":"+ ADMIN_PASSWORD +"@doujinsoft.yihang.one/manage";
+//        driver.get(BASE_URL);
     }
+
 }

@@ -64,10 +64,16 @@
                     <!-- Generate JaCoCo coverage report after tests -->
                     <execution>
                         <id>report</id>
-                        <phase>prepare-package</phase>
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <excludes>
+                                <!-- exclude com.xperia64.diyedit -->
+                                <exclude>com/xperia64/diyedit/**</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -196,6 +202,12 @@
             <artifactId>json-path</artifactId>
             <version>5.5.1</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.stefanbirkner</groupId>
+            <artifactId>system-lambda</artifactId>
+            <version>1.2.1</version>
         </dependency>
 
 
