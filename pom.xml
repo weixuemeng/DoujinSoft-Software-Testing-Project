@@ -82,9 +82,10 @@
                 <version>3.5.3</version>
                 <configuration>
                     <argLine>
+                        @{argLine}
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
-                        @{argLine} -javaagent:${settings.localRepository}/org/mockito/mockito-core/5.17.0/mockito-core-5.17.0.jar
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/5.17.0/mockito-core-5.17.0.jar
                         -Xshare:off
                     </argLine>
                 </configuration>
