@@ -1,20 +1,12 @@
-package test.java;
+package com.difegue.doujinsoft.templates;
 
-import com.difegue.doujinsoft.templates.BaseMio;
-import com.difegue.doujinsoft.templates.Cart;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 //import org.junit.jupiter.params.ParameterizedTest;
 //import org.junit.jupiter.params.provider.CsvSource;
-import com.xperia64.diyedit.metadata.Metadata;
-import com.difegue.doujinsoft.utils.MioUtils;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -24,12 +16,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 public class TestCart {
     HttpServletRequest request;
