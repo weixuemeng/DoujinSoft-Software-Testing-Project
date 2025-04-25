@@ -21,6 +21,8 @@ public class BaseMio {
 
 		name = m.getName();
 		hash = MioStorage.computeMioHash(m.file);
+		System.out.println("hash");
+		System.out.println(hash);
 		creator = m.getCreator();
 		brand = m.getBrand();
 		timestamp = MioUtils.getTimeString(m.getTimestamp());
