@@ -2,6 +2,7 @@ package test.java;
 
 import com.difegue.doujinsoft.templates.BaseMio;
 import com.difegue.doujinsoft.templates.Cart;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,7 +88,7 @@ public class TestCart {
         assertEquals(3, cart.getRecords().size());
 
     }
-
+    @Test
     public void testNotJsonArray() throws IOException, ServletException{
         when(request.getPart("save")).thenReturn(savePart);
 
@@ -111,9 +112,9 @@ public class TestCart {
 
         // JsonElement a = JsonParser.parseString(request.getParameter("games"));
         JsonElement a = JsonParser.parseString(request.getParameter("games"));
-        assertNull(cart.getGames());
-        assertNull(cart.getManga());
-        assertNull(cart.getRecords());
+        assertEquals(new JsonArray(),cart.getGames());
+        assertEquals(new JsonArray(),cart.getManga());
+        assertEquals(new JsonArray(),cart.getRecords());
     }
 
 
