@@ -1,6 +1,5 @@
-package test.java;
+package com.difegue.doujinsoft.wc24;
 
-import com.difegue.doujinsoft.wc24.LZSS;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,6 @@
-package test.java;
+package com.difegue.doujinsoft.utils;
 
 import com.difegue.doujinsoft.templates.Collection;
-import com.difegue.doujinsoft.utils.CollectionUtils;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,12 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -1,12 +1,9 @@
-package test.java;
+package com.difegue.doujinsoft.wc24;
 
 import com.difegue.doujinsoft.utils.MioUtils;
-import com.difegue.doujinsoft.wc24.LZSS;
-import com.difegue.doujinsoft.wc24.MailItem;
 import com.mitchellbosecke.pebble.PebbleEngine;
 import com.mitchellbosecke.pebble.template.PebbleTemplate;
 import com.xperia64.diyedit.metadata.Metadata;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -14,19 +11,14 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.mockito.MockedConstruction;
-import org.mockito.MockedStatic;
+
 import static com.github.stefanbirkner.systemlambda.SystemLambda.*;
 
 
 import javax.servlet.ServletContext;
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
