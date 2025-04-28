@@ -18,52 +18,40 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
-/**
- * @Tag("Branch_SURVEY_Full")  全分支覆盖 + 两个黑盒验收
- */
 class TestSurvey {
-
-    /* ---------- 共用 mock ---------- */
 
     private static ResultSet stub(int rawType, int commentId,
                                   String rawName, int stars) throws SQLException {
-        ResultSet rs = Mockito.mock(ResultSet.class);   // 默认策略 RETURNS_DEFAULTS
-
+        ResultSet rs = Mockito.mock(ResultSet.class);
         when(rs.getInt("type")).thenReturn(rawType);
         when(rs.getInt("commentId")).thenReturn(commentId);
         when(rs.getString("name")).thenReturn(rawName);
         when(rs.getInt("stars")).thenReturn(stars);
-
-        return rs;   // ⚠️ 不再有 anyString / anyInt 的通配 stub
+        return rs;
     }
 
-    /* ---------- ① 外层 type × 内层 commentId 30 条分支 ---------- */
-
+    // whitebox 1, outer x commentedID x 30 branches
     @ParameterizedTest(name = "outerType={0} commentId={1}")
     @MethodSource("commentMatrix")
     @Tag("Branch_COMMENT")
-    void everyCommentMappedCorrectly(int outerType /* 0/1/2 */, int commentId,
+    void everyCommentMappedCorrectly(int outerType, int commentId,
                                      String expColor, String expCat,
                                      String expComment,
                                      int expTypeConstant) throws SQLException {
 
         ResultSet rs = stub(outerType, commentId, "Foo", 4);
         Survey s = new Survey(rs);
-
-        // 外层 switch 断言
         assertEquals(expColor, s.color);
         assertEquals(expCat,   s.category);
         assertEquals(expTypeConstant, s.type);
-
-        // 内层 switch 断言
         assertEquals(expComment, s.comment);
     }
 
-    /** 生成 3×10=30 组测试数据 */
+    // generate 30 test cases data
     private static Stream<Arguments> commentMatrix() {
 
         Map<Integer, String[]> commentTable = Map.of(
-                0, new String[]{     // outerType 0 → games
+                0, new String[]{
                         "Looked very professional!",
                         "I was so moved!",
                         "Funny!",
@@ -75,7 +63,7 @@ class TestSurvey {
                         "That was hard!",
                         "You must have worked hard!"
                 },
-                1, new String[]{     // outerType 1 → records
+                1, new String[]{
                         "Sounded very professional!",
                         "I was so moved!",
                         "Funny!",
@@ -87,7 +75,7 @@ class TestSurvey {
                         "Fun to play!",
                         "You must have worked hard!"
                 },
-                2, new String[]{     // outerType 2 → comics
+                2, new String[]{
                         "Looked very professional!",
                         "Very...moving!",
                         "Funny!",
@@ -103,7 +91,7 @@ class TestSurvey {
 
         return commentTable.entrySet().stream()
                 .flatMap(e -> {
-                    int outerType = e.getKey();           // 0 / 1 / 2
+                    int outerType = e.getKey();
                     String[] comments = e.getValue();
                     String expColor = outerType == 0 ? "green"
                             : outerType == 1 ? "pink"
@@ -121,12 +109,10 @@ class TestSurvey {
                 });
     }
 
-    /* ---------- ② 默认分支（未知 type 或 commentId） ---------- */
-
     @Test
     @Tag("Branch_DEFAULT")
     void unknownTypeOrCommentFallsBackToBarf() throws SQLException {
-        ResultSet rs = stub(99 /* 不认识 */, 42, "X", 1);
+        ResultSet rs = stub(99, 42, "X", 1);
         Survey s = new Survey(rs);
         assertEquals("barf", s.comment);
         assertNull(s.color);
@@ -142,7 +128,7 @@ class TestSurvey {
         assertAll(
                 () -> assertEquals("green", s.color),
                 () -> assertEquals("games", s.category),
-                () -> assertEquals("barf", s.comment)   // 触发 break → barf
+                () -> assertEquals("barf", s.comment)
         );
     }
 
@@ -162,17 +148,13 @@ class TestSurvey {
     @Tag("Record_UnknownComment_should_return_barf")
     @Test
     void recordTypeWithUnknownCommentReturnsBarf() throws SQLException {
-        // Arrange ── mock 出 record 类型的数据行
         ResultSet rs = Mockito.mock(ResultSet.class);
-        when(rs.getInt   ("type"     )).thenReturn(1);     // 1 == record
-        when(rs.getInt   ("commentId")).thenReturn(42);    // 超出 0-9 范围
+        when(rs.getInt   ("type"     )).thenReturn(1);
+        when(rs.getInt   ("commentId")).thenReturn(42);
         when(rs.getString("name"     )).thenReturn("Rec");
         when(rs.getInt   ("stars"    )).thenReturn(3);
-
-        // Act
         Survey survey = new Survey(rs);
 
-        // Assert ── 落入 default: "barf"，同时其它字段也应正确映射
         assertAll(
                 () -> assertEquals("barf"  , survey.comment ),
                 () -> assertEquals("pink"  , survey.color   ),
@@ -181,12 +163,7 @@ class TestSurvey {
         );
     }
 
-
-
-
-
-    /* ---------- ③ 黑盒：名字过滤非法 Unicode ---------- */
-
+    // blackbox: unicode
     @Test
     @Tag("BB_name_sanitise")
     void invalidUnicodeIsRemovedFromName() throws SQLException {
@@ -196,8 +173,7 @@ class TestSurvey {
         assertEquals("GoodName", s.name);
     }
 
-    /* ---------- ④ 黑盒：星级透传 ---------- */
-
+    // blackbox test
     @Test
     @Tag("BB_star_count")
     void starCountIsCopied() throws SQLException {

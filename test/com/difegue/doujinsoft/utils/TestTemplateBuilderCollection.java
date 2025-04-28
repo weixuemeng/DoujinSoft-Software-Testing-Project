@@ -17,20 +17,9 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * 覆盖 TemplateBuilderCollection 全分支：
- * <ol>
- *   <li>空集合 (mioSQL == ")" )</li>
- *   <li>GET – 正常分页 & 默认 timeStamp 排序</li>
- *   <li>GET – format=json</li>
- *   <li>POST – name/creator 搜索 (performSearchQuery)</li>
- *   <li>POST – creatorId 搜索 (performCreatorSearchQuery)</li>
- * </ol>
- */
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class TestTemplateBuilderCollection {
-
-    /* ------------- 通用 mock ------------- */
+    // general mock
     private MockedStatic<DriverManager> dm;
     private Connection   conn;
     private Statement    st;
@@ -40,7 +29,6 @@ class TestTemplateBuilderCollection {
     private HttpServletRequest req;
     private Path template;
 
-    /* ---------- 把 Collection 做成测试子类 ---------- */
     private static class FakeCollection extends Collection {
         private final String mioSql;
         private final int    type;
@@ -60,28 +48,23 @@ class TestTemplateBuilderCollection {
         @Override public int    getType()   { return type;   }
     }
 
-    /* ------------------------------------------------------------------ */
     @BeforeEach void setUp() throws Exception {
         conn = mock(Connection.class);
         st   = mock(Statement.class);
         ps   = mock(PreparedStatement.class);
         rs   = mock(ResultSet.class);
-
         when(conn.createStatement()).thenReturn(st);
         when(conn.prepareStatement(anyString())).thenReturn(ps);
         when(st.executeQuery(anyString())).thenReturn(rs);
         when(ps.executeQuery()).thenReturn(rs);
-        when(rs.next()).thenReturn(false);               // 个别测试里再改
-
+        when(rs.next()).thenReturn(false);
         dm = mockStatic(DriverManager.class);
         dm.when(() -> DriverManager.getConnection(anyString())).thenReturn(conn);
-
         ctx = mock(ServletContext.class);
         when(ctx.getInitParameter("dataDirectory")).thenReturn("/tmp");
         template = Files.createTempFile("colTpl", ".html");
         Files.writeString(template, "collection template");
         when(ctx.getRealPath(anyString())).thenReturn(template.toString());
-
         req = mock(HttpServletRequest.class);
         when(req.getParameter(anyString())).thenReturn("");
         when(req.getParameterMap()).thenReturn(Collections.emptyMap());
@@ -92,9 +75,7 @@ class TestTemplateBuilderCollection {
         Files.deleteIfExists(template);
     }
 
-    /* ================ TESTS ================ */
-
-    /** ① 空集合分支 */
+    // whitebox 1 empty
     @Test void emptyCollection() throws Exception {
         Collection c = new FakeCollection(")", Types.GAME, new String[0]);
 
@@ -102,26 +83,22 @@ class TestTemplateBuilderCollection {
                 .doStandardPageCollection(c);
 
         Assertions.assertTrue(html.contains("collection template"));
-        verify(st, never()).executeQuery(anyString());          // 没跑 SQL
+        verify(st, never()).executeQuery(anyString());
     }
 
-    /** ② GET – 默认 15 条 + timeStamp 排序 */
+   // get + 15 branch
     @Test void getPage_normal() throws Exception {
-        // ⚠️ 让 next() 始终返回 false，避免真正 new Manga(...)
         when(rs.next()).thenReturn(false);
-
         String sql = "(\"a\",\"b\",\"c\")";
         Collection c = new FakeCollection(sql, Types.MANGA,
                 new String[]{"a","b","c"});
-
         new TemplateBuilderCollection(ctx, req)
                 .doStandardPageCollection(c);
-
         verify(st).executeQuery(
                 argThat(s -> s.contains(sql) && s.contains("timeStamp DESC")));
     }
 
-    /** ③ GET – format=json */
+//    whitebox3
     @Test void getPage_json() throws Exception {
         when(req.getParameterMap())
                 .thenReturn(Map.of("format", new String[]{"json"}));
@@ -136,26 +113,22 @@ class TestTemplateBuilderCollection {
         Assertions.assertTrue(out.startsWith("{"));
     }
 
-    /** ④ POST – name / creator LIKE 搜索 */
+    // whitebox 4 Post + name / creator
     @Test void post_nameCreator() throws Exception {
         when(req.getParameterMap()).thenReturn(Map.of(
                 "name",    new String[]{"Mario"},
                 "creator", new String[]{"Nin"}));
         when(req.getParameter("name")).thenReturn("Mario");
         when(req.getParameter("creator")).thenReturn("Nin");
-
         Collection c = new FakeCollection("(\"y\")", Types.MANGA,
                 new String[]{"y"});
-
         new TemplateBuilderCollection(ctx, req).doSearchCollection(c);
-
         verify(ps, times(2)).setString(eq(1), eq("Mario%"));
         verify(ps, times(2)).setString(eq(2), eq("Nin%"));
-        // 模板文件应为 "...Detail.html"
         verify(ctx).getRealPath(contains("mangaDetail.html"));
     }
 
-    /** ⑤ POST – 仅 creator_id 搜索（默认 timeStamp 排序） */
+    // test 5 creator id in search
     @Test void post_creatorId() throws Exception {
         when(req.getParameterMap()).thenReturn(Map.of(
                 "creator_id",   new String[]{"CID"},
@@ -163,32 +136,24 @@ class TestTemplateBuilderCollection {
         when(req.getParameter("creator_id")).thenReturn("CID");
         when(req.getParameter("cartridge_id"))
                 .thenReturn("00000000000000000000000000000000");
-
         Collection c = new FakeCollection("(\"z\")", Types.GAME,
                 new String[]{"z"});
-
         new TemplateBuilderCollection(ctx, req)
                 .doSearchCollection(c);
-
-        // creatorID=?
         ArgumentCaptor<String> cap = ArgumentCaptor.forClass(String.class);
         verify(conn, atLeastOnce()).prepareStatement(cap.capture());
         Assertions.assertTrue(cap.getAllValues().stream()
                 .anyMatch(s -> s.contains("creatorID = ?")));
-
         verify(ps, times(2)).setString(eq(1), eq("CID"));
     }
 
     @Test void getPage_withResultLoop() throws Exception {
-        when(rs.next()).thenReturn(true, false);      // 进循环一次
-        when(rs.getString(anyString())).thenReturn("");  // 防守式占位
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getString(anyString())).thenReturn("");
         Collection c = new FakeCollection("(\"h1\")", Types.GAME,
                 new String[]{"h1"});
-
         new TemplateBuilderCollection(ctx, req)
                 .doStandardPageCollection(c);
-
-        // verify items 被放进 context（调用了 add()）
         verify(rs, atLeastOnce()).next();
     }
 
@@ -199,29 +164,18 @@ class TestTemplateBuilderCollection {
         when(req.getParameter("creator_id")).thenReturn("DEV1");
         when(req.getParameter("cartridge_id"))
                 .thenReturn("00000000000000000000000000000000");
-
         Collection c = new FakeCollection("(\"x\")", Types.GAME, new String[]{"x"});
         new TemplateBuilderCollection(ctx, req).doSearchCollection(c);
-
-        // creatorID ? 应被绑定两次
         verify(ps, times(2)).setString(eq(1), eq("DEV1"));
-        // 循环体不会跑；while coverage 已在①里补齐
     }
 
     @Test void post_jsonHijack() throws Exception {
         when(req.getParameterMap()).thenReturn(Map.of(
                 "format", new String[]{"json"}));
         when(req.getParameter("format")).thenReturn("json");
-
         Collection c = new FakeCollection("(\"z\")", Types.MANGA, new String[]{"z"});
-
         String json = new TemplateBuilderCollection(ctx, req)
                 .doSearchCollection(c);
-
-        Assertions.assertTrue(json.startsWith("{"));  // 确认走 gson.toJson
+        Assertions.assertTrue(json.startsWith("{"));
     }
-
-
-
-
 }

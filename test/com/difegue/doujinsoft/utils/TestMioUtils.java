@@ -25,7 +25,6 @@ import static org.mockito.Mockito.*;
 
 public class TestMioUtils {
 
-    // this weird test is for meeting line coverage
     @Test
     public void testTypes() {
         Assertions.assertEquals(65536, MioUtils.Types.GAME);
@@ -64,7 +63,6 @@ public class TestMioUtils {
         Assertions.assertEquals("nint-10100-0", MioUtils.computeMioID(mio));
     }
 
-    // also for meeting line coverage
     @ParameterizedTest
     @CsvSource({
             "0, yellow",
@@ -83,8 +81,7 @@ public class TestMioUtils {
 
     @Test
     public void testGetBase64MangaWithAllBlack() {
-        byte[] mioFile = new byte[]{}; // a placeholder to make it run
-        // normal mock can't handle constructor, mockito inline is used here
+        byte[] mioFile = new byte[]{};
         try (MockedConstruction<MangaEdit> mangaEdit = mockConstruction(MangaEdit.class,
                 (e2, context) -> {
             when(e2.getPixel(anyByte(), anyInt(), anyInt())).thenReturn(true);
@@ -93,14 +90,6 @@ public class TestMioUtils {
             List<MangaEdit> mangaEdits = mangaEdit.constructed();
             Assertions.assertEquals(1, mangaEdits.size());
             MangaEdit e2 = mangaEdits.get(0);
-            /*
-            ".mio comic panels are 191x127px.",
-            but the code runs getPixel() for x from 0 to 191 (192 pixels)
-            and for y from 0 to 127 (128 pixels)
-            so it runs 24576(192*128) times instead of 24527(191*127) times
-            since it reads from a mio file that contains more than just image
-            it won't throw even in normal use but will draw an extra line based on the extra data read
-             */
             verify(e2, times(191*127)).getPixel(anyByte(), anyInt(), anyInt());
         }
     }
@@ -116,7 +105,6 @@ public class TestMioUtils {
             List<MangaEdit> mangaEdits = mangaEdit.constructed();
             Assertions.assertEquals(1, mangaEdits.size());
             MangaEdit e2 = mangaEdits.get(0);
-            // same failure here
             verify(e2, times(191*127)).getPixel(anyByte(), anyInt(), anyInt());
         }
     }
@@ -132,7 +120,6 @@ public class TestMioUtils {
             List<MangaEdit> mangaEdits = mangaEdit.constructed();
             Assertions.assertEquals(1, mangaEdits.size());
             MangaEdit e2 = mangaEdits.get(0);
-            // same failure here
             verify(e2, times(191*127)).getPixel(anyByte(), anyInt(), anyInt());
         }
     }
@@ -149,7 +136,6 @@ public class TestMioUtils {
             List<GameEdit> gameEdits = gameEdit.constructed();
             Assertions.assertEquals(1, gameEdits.size());
             GameEdit gameMeta = gameEdits.get(0);
-            // similar failure, runs 6144(96*63) times but not 5985(95*63)
             verify(gameMeta, times(95*63)).getPreviewPixel(anyInt(), anyInt());
         }
     }
@@ -159,12 +145,10 @@ public class TestMioUtils {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {MioUtils.imgToBase64String(null, "png");});
     }
 
-    // empty img input test is skipped
-    // since it is pretty hard to construct one without throwing
     @RepeatedTest(50)
     public void testImgToBase64StringWithOnePixelThenToImgToSeeIfTheSame() throws IOException {
         BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
-        image.setRGB(0, 0, new Random().nextInt(256)); //btw, not so sure why Graphics2D.drawRect was used in original code only to set RGB
+        image.setRGB(0, 0, new Random().nextInt(256));
         String base64String = MioUtils.imgToBase64String(image, "png");
 
         byte[] decoded = Base64.getDecoder().decode(base64String);
@@ -195,7 +179,7 @@ public class TestMioUtils {
         Assertions.assertEquals(image.getRGB(0, 1), decodedImage.getRGB(0, 1));
     }
 
-    // to meet branch coverage, simulate io interruptions
+
     @Test
     public void testImgToBase64StringWithIOInterruptions() {
         BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
