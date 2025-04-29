@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SurveyServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">SurveyServlet.java</span></div><h1>SurveyServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import com.difegue.doujinsoft.utils.TemplateBuilderSurvey;
+
+
+/**
+ * Servlet implementation class SurveyListing
+ */
+@WebServlet(&quot;/surveys&quot;)
+public class SurveyServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+    private Logger ServletLog;
+    
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+<span class="fc" id="L30">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="fc" id="L31">		ServletContext application = getServletConfig().getServletContext();			</span>
+<span class="fc" id="L32">		String output = &quot;&quot;;</span>
+		
+		try {
+<span class="fc" id="L35">	    	output = new TemplateBuilderSurvey(application, request).doGetSurveys();</span>
+<span class="fc" id="L36">			response.getWriter().append(output);</span>
+<span class="fc" id="L37">		} catch (Exception e) {</span>
+<span class="fc" id="L38">			ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="fc" id="L39">		}</span>
+<span class="fc" id="L40">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+<span class="fc" id="L47">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="fc" id="L48">		ServletContext application = getServletConfig().getServletContext();	</span>
+<span class="fc" id="L49">		String output = &quot;Who are you running from?&quot;;</span>
+		
+		try {
+			
+<span class="fc bfc" id="L53" title="All 2 branches covered.">			if (!request.getParameterMap().isEmpty())</span>
+<span class="fc" id="L54">				output = new TemplateBuilderSurvey(application, request).doPostSurveys();</span>
+
+<span class="fc" id="L56">			response.getWriter().append(output);</span>
+			
+<span class="nc" id="L58">		} catch (Exception e) {</span>
+<span class="nc" id="L59">			ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="fc" id="L60">		}</span>
+<span class="fc" id="L61">	}</span>
+
+    
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public SurveyServlet() {
+<span class="fc" id="L68">        super(); </span>
+<span class="fc" id="L69">        ServletLog = Logger.getLogger(&quot;SurveyServlet&quot;);</span>
+<span class="fc" id="L70">        ServletLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));     </span>
+<span class="fc" id="L71">    }</span>
+   
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

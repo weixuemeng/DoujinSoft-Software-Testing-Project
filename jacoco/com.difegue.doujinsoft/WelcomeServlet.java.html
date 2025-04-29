@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WelcomeServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">WelcomeServlet.java</span></div><h1>WelcomeServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.difegue.doujinsoft.templates.Collection;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.error.PebbleException;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
+
+/**
+ * Servlet implementation class Home
+ */
+@WebServlet(&quot;/home&quot;)
+public class WelcomeServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+	private Logger ServletLog;
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+
+<span class="nc" id="L53">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L54">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L55">		String output = &quot;&quot;;</span>
+
+		try {
+
+<span class="nc" id="L59">			output = doStandardPage(application);</span>
+<span class="nc" id="L60">			response.getWriter().append(output);</span>
+
+<span class="nc" id="L62">		} catch (SQLException | PebbleException e) {</span>
+<span class="nc" id="L63">			ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L64">		}</span>
+
+<span class="nc" id="L66">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+
+<span class="nc" id="L75">		doGet(request, response);</span>
+
+<span class="nc" id="L77">	}</span>
+
+	/**
+	 * @see HttpServlet#HttpServlet()
+	 */
+	public WelcomeServlet() {
+<span class="nc" id="L83">		super();</span>
+<span class="nc" id="L84">		ServletLog = Logger.getLogger(&quot;GameServlet&quot;);</span>
+<span class="nc" id="L85">		ServletLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));</span>
+<span class="nc" id="L86">	}</span>
+
+	private ArrayList&lt;Collection&gt; getAllCollectionsInDataDir(String dataDir) throws FileNotFoundException {
+
+<span class="nc" id="L90">		ArrayList&lt;Collection&gt; ret = new ArrayList&lt;Collection&gt;();</span>
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">		if (!new File(dataDir + &quot;/collections/&quot;).exists())</span>
+<span class="nc" id="L93">			new File(dataDir + &quot;/collections/&quot;).mkdirs();</span>
+
+<span class="nc" id="L95">		File[] files = new File(dataDir + &quot;/collections/&quot;).listFiles();</span>
+
+		// Sort collections by filename
+<span class="nc" id="L98">		Arrays.sort(files);</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">		for (File f : files) {</span>
+
+			// Try opening the matching JSON file
+<span class="nc" id="L103">			Gson gson = new Gson();</span>
+<span class="nc" id="L104">			JsonReader jsonReader = new JsonReader(new FileReader(f));</span>
+			// Auto bind the json to a class
+<span class="nc" id="L106">			Collection c = gson.fromJson(jsonReader, Collection.class);</span>
+<span class="nc" id="L107">			c.id = f.getName().substring(0, f.getName().length() - 5);</span>
+<span class="nc" id="L108">			ret.add(c);</span>
+
+		}
+
+<span class="nc" id="L112">		return ret;</span>
+	}
+
+	// Generates the homepage.
+	private String doStandardPage(ServletContext application) throws PebbleException, SQLException, IOException {
+
+<span class="nc" id="L118">		Map&lt;String, Object&gt; context = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L120">		Connection connection = null;</span>
+<span class="nc" id="L121">		PebbleEngine engine = new PebbleEngine.Builder().build();</span>
+		PebbleTemplate compiledTemplate;
+
+		// Getting base template
+<span class="nc" id="L125">		compiledTemplate = engine.getTemplate(application.getRealPath(&quot;/WEB-INF/templates/home.html&quot;));</span>
+<span class="nc" id="L126">		String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+		// create a database connection
+<span class="nc" id="L129">		connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;);</span>
+<span class="nc" id="L130">		Statement statement = connection.createStatement();</span>
+<span class="nc" id="L131">		statement.setQueryTimeout(30); // set timeout to 30 sec.</span>
+
+<span class="nc" id="L133">		ResultSet result = statement.executeQuery(&quot;select COUNT(id) from Games&quot;);</span>
+<span class="nc" id="L134">		context.put(&quot;totalGames&quot;, result.getInt(1));</span>
+
+<span class="nc" id="L136">		result = statement.executeQuery(&quot;select COUNT(id) from Records&quot;);</span>
+<span class="nc" id="L137">		context.put(&quot;totalRecords&quot;, result.getInt(1));</span>
+
+<span class="nc" id="L139">		result = statement.executeQuery(&quot;select COUNT(id) from Manga&quot;);</span>
+<span class="nc" id="L140">		context.put(&quot;totalComics&quot;, result.getInt(1));</span>
+
+<span class="nc" id="L142">		context.put(&quot;collections&quot;, getAllCollectionsInDataDir(dataDir));</span>
+
+		// The little news string at the top of the page is stored in a news.txt file in
+		// the data directory.
+		// Simple stuff.
+<span class="nc" id="L147">		String news = &quot;Welcome to DoujinSoft!&quot;;</span>
+<span class="nc" id="L148">		File newsFile = new File(dataDir + &quot;/news.txt&quot;);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">		if (newsFile.exists()) {</span>
+			// Read newsFile and put its contents in news
+<span class="nc" id="L151">			Scanner scanner = new Scanner(newsFile);</span>
+<span class="nc" id="L152">			news = scanner.nextLine();</span>
+<span class="nc" id="L153">			scanner.close();</span>
+		}
+<span class="nc" id="L155">		context.put(&quot;news&quot;, news);</span>
+
+		// Output to client
+<span class="nc" id="L158">		Writer writer = new StringWriter();</span>
+<span class="nc" id="L159">		compiledTemplate.evaluate(writer, context);</span>
+<span class="nc" id="L160">		String output = writer.toString();</span>
+
+<span class="nc" id="L162">		result.close();</span>
+<span class="nc" id="L163">		statement.close();</span>
+<span class="nc" id="L164">		connection.close();</span>
+<span class="nc" id="L165">		return output;</span>
+
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

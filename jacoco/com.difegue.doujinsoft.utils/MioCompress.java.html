@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MioCompress.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">MioCompress.java</span></div><h1>MioCompress.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
+
+<span class="fc" id="L11">public class MioCompress {</span>
+
+    /**
+     * Compress and uncompress .mio files with ZipEntry.
+     */
+
+    public static void compressMio(File orig, File dest, String desiredName) throws IOException {
+
+<span class="fc" id="L19">        String zipFileName = dest.getAbsolutePath();</span>
+        // Creates a file output stream to write to the file(zipFileName ) with the specified name.
+        // Creates a new ZIP output stream
+<span class="fc" id="L22">        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFileName));</span>
+<span class="fc" id="L23">        zos.putNextEntry(new ZipEntry(desiredName));</span>
+
+<span class="fc" id="L25">        byte[] bytes = Files.readAllBytes(orig.toPath()); // read the byte from the orig</span>
+<span class="fc" id="L26">        zos.write(bytes, 0, bytes.length); // write to</span>
+<span class="fc" id="L27">        zos.closeEntry();</span>
+<span class="fc" id="L28">        zos.close();</span>
+<span class="fc" id="L29">    }</span>
+
+    public static File uncompressMio(File compressedMio) throws IOException {
+
+<span class="fc" id="L33">        Logger logger = Logger.getLogger(&quot;Mio Unzip&quot;);</span>
+        // Files are extracted to tempfolder/their hash to avoid conflicts
+<span class="fc" id="L35">        var hash = compressedMio.getName().replaceFirst(&quot;[.][^.]+$&quot;, &quot;&quot;);</span>
+<span class="fc" id="L36">        System.out.println(&quot;----&quot;);</span>
+<span class="fc" id="L37">        System.out.println(hash);</span>
+<span class="fc" id="L38">        String tDir = System.getProperty(&quot;java.io.tmpdir&quot;) + File.separator + hash;</span>
+
+
+        // Create folder if it doesn't exist
+<span class="fc" id="L42">        File tempDir = new File(tDir);</span>
+<span class="fc" id="L43">        System.out.println(compressedMio.toPath().toString());</span>
+<span class="fc" id="L44">        System.out.println(tempDir.toString());</span>
+<span class="fc" id="L45">        System.out.println(tempDir.exists());</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (!tempDir.exists()) {</span>
+<span class="fc" id="L47">            System.out.println(&quot;here1&quot;);</span>
+<span class="fc" id="L48">            tempDir.mkdir();</span>
+        }
+
+        // Uncompress given file
+<span class="fc" id="L52">        ZipInputStream zis = new ZipInputStream(new FileInputStream(compressedMio.getAbsolutePath()));</span>
+<span class="fc" id="L53">        ZipEntry entry = zis.getNextEntry();</span>
+<span class="fc" id="L54">        byte[] buffer = new byte[1024];</span>
+
+<span class="fc" id="L56">        File uncompressedMio = null;</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        while (entry != null) {</span>
+
+<span class="fc" id="L59">            String fileName = entry.getName();</span>
+<span class="fc" id="L60">            System.out.println(fileName);</span>
+<span class="fc" id="L61">            uncompressedMio = new File(tDir, fileName);</span>
+
+            // &quot;cache&quot; implementation (sort of)
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if (uncompressedMio.exists()) {</span>
+<span class="fc" id="L65">                System.out.println(&quot;here&quot;);</span>
+                // You can get a race condition here if someone starts a download and a
+                // concurrent user starts one right afterwards.
+                // User n°2 might get an incomplete .mio file.
+                // Considering how small those files are, the timing is fairly tight...
+<span class="fc" id="L70">                break;</span>
+            }
+<span class="fc" id="L72">            FileOutputStream fos = new FileOutputStream(uncompressedMio);</span>
+<span class="fc" id="L73">            logger.log(Level.FINE, &quot;Uncompressing .mio to &quot; + uncompressedMio.getAbsolutePath());</span>
+
+            int len;
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            while ((len = zis.read(buffer)) &gt; 0) {</span>
+<span class="fc" id="L77">                fos.write(buffer, 0, len);</span>
+            }
+
+<span class="fc" id="L80">            fos.close();</span>
+<span class="fc" id="L81">            entry = zis.getNextEntry();</span>
+<span class="fc" id="L82">        }</span>
+<span class="fc" id="L83">        System.out.println(&quot;----&quot;);</span>
+
+<span class="fc" id="L85">        zis.closeEntry();</span>
+<span class="fc" id="L86">        zis.close();</span>
+
+        // Return away
+<span class="fc" id="L89">        return uncompressedMio;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MailItemParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.wc24</a> &gt; <span class="el_source">MailItemParser.java</span></div><h1>MailItemParser.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.wc24;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import java.io.*;
+import java.nio.file.*;
+import java.nio.charset.StandardCharsets;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import javax.servlet.ServletContext;
+
+import com.difegue.doujinsoft.utils.CollectionUtils;
+import com.difegue.doujinsoft.utils.MioStorage;
+import com.xperia64.diyedit.metadata.*;
+
+import javax.mail.*;
+import javax.mail.Message.RecipientType;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.InternetAddress;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Properties;
+import java.util.regex.*;
+import java.util.List;
+import java.util.Base64;
+
+import com.difegue.doujinsoft.templates.Collection;
+
+public class MailItemParser extends WC24Base {
+
+<span class="fc" id="L38">    private final Pattern pattern = Pattern.compile(&quot;w([0-9]*)@&quot; + Pattern.quote(wc24Server));</span>
+    private String dataDir;
+    private String mailFallbackCode;
+
+    public MailItemParser(ServletContext application) throws Exception {
+<span class="fc" id="L43">        super(application);</span>
+<span class="fc" id="L44">        dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (!System.getenv().containsKey(&quot;WII_FALLBACK&quot;))</span>
+<span class="fc" id="L47">            throw new Exception(</span>
+                    &quot;Fallback Wii number not specified. Please set the WII_FALLBACK environment variable.&quot;);
+
+<span class="fc" id="L50">        mailFallbackCode = System.getenv(&quot;WII_FALLBACK&quot;);</span>
+<span class="fc" id="L51">    }</span>
+
+    /***
+     * Handles emails received from a WC24 server or a data file. &lt;/br&gt;
+     * &lt;/br&gt;
+     * - &quot;WC24 Cmd Message&quot; emails (Friend requests) are replied to using
+     * WiiConnect24Api &lt;/br&gt;
+     * - &quot;QUESTION&quot; emails (DIY Showcase survey box) are added to the matching
+     * SQLite table &lt;/br&gt;
+     * - &quot;G&quot;/&quot;RR&quot;/&quot;MMM&quot; (DIY Showcase content) are converted to .mio and added to
+     * the database &lt;/br&gt;
+     * - Other emails are sent to a backup address belonging to a real Wii for
+     * safekeeping. &lt;/br&gt;
+     * 
+     * @param emailData emails recovered from a WC24 server
+     */
+    public void consumeEmails(String emailData) {
+
+<span class="fc" id="L69">        Logger log = Logger.getLogger(&quot;WC24 Mail Parsing&quot;);</span>
+<span class="fc" id="L70">        ArrayList&lt;MailItem&gt; mailsToSend = new ArrayList&lt;&gt;();</span>
+
+        // Let's get started. First line of the mail response is our delimiter.
+<span class="fc" id="L73">        String delimiter = emailData.split(&quot;\\R&quot;, 2)[0];</span>
+<span class="fc" id="L74">        log.log(Level.INFO, &quot;Delimiter for this maildata is &quot; + delimiter);</span>
+
+<span class="fc" id="L76">        String[] mailItems = emailData.split(Pattern.quote(delimiter));</span>
+
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        for (String content : mailItems) {</span>
+            try {
+
+<span class="fc bfc" id="L81" title="All 2 branches covered.">                if (content.contains(&quot;This part is ignored&quot;)) {</span>
+                    // What it says on the tin!
+<span class="fc" id="L83">                    continue;</span>
+                }
+
+<span class="fc bfc" id="L86" title="All 2 branches covered.">                if (content.length() &lt; 30) {</span>
+                    // Skip empty (or mostly-empty) items
+                    // The mails end with &quot;--202409141517/6360705--&quot; whereas the delimiter is
+                    // &quot;--202409141517/6360705&quot; so you'll have some noise at the end
+<span class="fc" id="L90">                    continue;</span>
+                }
+
+                // Strip &quot;Content-Type: text/plain&quot; at the beginning of the item
+<span class="fc" id="L94">                content = content.substring(30);</span>
+<span class="fc" id="L95">                MailItem toSend = analyzeMail(content);</span>
+
+                // analyzeMail returns a MailItem if there's something to send out
+<span class="fc bfc" id="L98" title="All 2 branches covered.">                if (toSend != null)</span>
+<span class="fc" id="L99">                    mailsToSend.add(toSend);</span>
+<span class="fc" id="L100">            } catch (Exception e) {</span>
+<span class="fc" id="L101">                log.log(Level.WARNING, &quot;Couldn't analyze this mail, skipping: &quot; + e);</span>
+<span class="fc" id="L102">            }</span>
+        }
+
+        // Add recovered .mios to the database
+        try {
+<span class="fc" id="L107">            MioStorage.ScanForNewMioFiles(dataDir, log);</span>
+<span class="fc" id="L108">        } catch (SQLException e) {</span>
+<span class="fc" id="L109">            log.log(Level.SEVERE, &quot;Couldn't add obtained mios: &quot; + e);</span>
+<span class="fc" id="L110">        }</span>
+
+        // Send out reply mails, if there are any.
+        try {
+<span class="fc" id="L114">            new WiiConnect24Api(application).sendMails(mailsToSend);</span>
+<span class="fc" id="L115">        } catch (Exception e) {</span>
+<span class="fc" id="L116">            log.log(Level.SEVERE, &quot;Couldn't send out mails: &quot; + e);</span>
+<span class="fc" id="L117">        }</span>
+
+<span class="fc" id="L119">    }</span>
+
+    private MailItem analyzeMail(String mail) throws Exception {
+
+<span class="fc" id="L123">        Logger log = Logger.getLogger(&quot;WC24 Mail Parsing&quot;);</span>
+
+        // Use JavaMail to parse the email string
+<span class="fc" id="L126">        Session s = Session.getInstance(new Properties());</span>
+<span class="fc" id="L127">        InputStream is = new ByteArrayInputStream(mail.getBytes());</span>
+<span class="fc" id="L128">        MimeMessage message = new MimeMessage(s, is);</span>
+
+        // Reject mails that don't come from a Wii
+<span class="fc" id="L131">        log.log(Level.INFO, &quot;Analyzing mail received from &quot; + message.getFrom()[0].toString());</span>
+<span class="fc" id="L132">        String wiiCode = getWiiCode(message.getFrom()[0].toString());</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (wiiCode == null) {</span>
+<span class="fc" id="L134">            log.log(Level.INFO, &quot;Mail doesn't come from a Wii - Skipping.&quot;);</span>
+<span class="fc" id="L135">            return null;</span>
+        }
+
+<span class="fc" id="L138">        String subject = message.getSubject();</span>
+
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (subject == null) // The Wii doesn't care about the subject field</span>
+<span class="fc" id="L141">            subject = &quot;&quot;;</span>
+
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        if (!isFriendCodeSaved(wiiCode)) {</span>
+
+            // If the mail is a friend request, handle it
+<span class="fc bfc" id="L146" title="All 2 branches covered.">            if (subject.contains(&quot;WC24 Cmd Message&quot;)) {</span>
+<span class="fc" id="L147">                log.log(Level.INFO, &quot;Friend request from &quot; + wiiCode);</span>
+<span class="fc" id="L148">                saveFriendCode(wiiCode);</span>
+<span class="fc" id="L149">                return new MailItem(wiiCode);</span>
+            } else {
+                // Reject mails that don't have their code stored in the DB - with exceptions.
+                // Note - This was originally implemented to prevent survey spam, so it might be
+                // necessary to re-exclude QUESTION here if that happens again.
+<span class="pc bpc" id="L154" title="1 of 6 branches missed.">                if (subject.equals(&quot;QUESTION&quot;) || subject.equals(&quot;G&quot;) || subject.equals(&quot;RR&quot;)</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">                        || subject.equals(&quot;MMM&quot;)) {</span>
+<span class="fc" id="L156">                    log.log(Level.INFO, &quot;Unregistered Friend Code yet DIY content - Making an exception...&quot;);</span>
+                } else {
+<span class="fc" id="L158">                    log.log(Level.INFO, &quot;Mail from unregistered Friend Code - Skipping.&quot;);</span>
+<span class="fc" id="L159">                    return null;</span>
+                }
+
+            }
+        }
+
+        // Survey box
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        if (subject.equals(&quot;QUESTION&quot;)) {</span>
+
+            // Get survey answer (2nd bodypart) as a byte array
+<span class="fc" id="L169">            InputStream attachmentData = ((Multipart) message.getContent()).getBodyPart(1).getInputStream();</span>
+<span class="fc" id="L170">            byte[] survey = attachmentData.readAllBytes();</span>
+
+            // 0x19 (25 bytes) for the title, a byte for the type, a byte for how many
+            // stars, and a byte for the comment
+<span class="fc" id="L174">            String title = new String(Arrays.copyOfRange(survey, 0, 24));</span>
+
+            // Discard surveys with empty titles
+<span class="pc bpc" id="L177" title="1 of 4 branches missed.">            if (title.isEmpty() || title.isBlank())</span>
+<span class="fc" id="L178">                return null;</span>
+
+<span class="fc" id="L180">            saveSurveyAnswer(wiiCode, survey[25], title, survey[26], survey[27]);</span>
+
+<span class="fc" id="L182">            log.log(Level.INFO, &quot;Survey for &quot; + title);</span>
+
+            // No mail to send
+<span class="fc" id="L185">            return null;</span>
+        }
+
+        // Games/Records/Manga
+<span class="pc bpc" id="L189" title="2 of 6 branches missed.">        if (subject.equals(&quot;G&quot;) || subject.equals(&quot;RR&quot;) || subject.equals(&quot;MMM&quot;)) {</span>
+
+<span class="nc" id="L191">            byte[] data = getLZ10BodyPart(message);</span>
+<span class="nc" id="L192">            Metadata metadata = new Metadata(data);</span>
+
+            // Store data in a .mio file; Server will pick it up later
+<span class="nc" id="L195">            String hash = MioStorage.computeMioHash(data);</span>
+<span class="nc" id="L196">            File mio = new File(dataDir + &quot;/mio/&quot; + hash + &quot;.mio&quot;);</span>
+<span class="nc" id="L197">            try (FileOutputStream fos = new FileOutputStream(mio.getAbsolutePath())) {</span>
+<span class="nc" id="L198">                fos.write(data);</span>
+            }
+
+            // Store hash in the matching WC24 collection
+<span class="nc" id="L202">            addToWC24Collection(subject, hash);</span>
+
+            // Send thank-you mail
+<span class="nc" id="L205">            String name = metadata.getName();</span>
+<span class="nc" id="L206">            log.log(Level.INFO, &quot;Received DIY content: &quot; + name);</span>
+<span class="nc" id="L207">            return new MailItem(wiiCode, List.of(name), true);</span>
+        }
+
+        // Other emails...
+        // Change From: and To: to the server's wii address and the backup wii address
+        // respectively
+<span class="fc" id="L213">        message.setFrom(new InternetAddress(&quot;w&quot; + sender + &quot;@&quot; + wc24Server));</span>
+<span class="fc" id="L214">        message.addHeader(&quot;MAIL FROM&quot;, &quot;w&quot; + sender + &quot;@&quot; + wc24Server);</span>
+<span class="fc" id="L215">        message.setRecipients(RecipientType.TO,</span>
+                new Address[] { new InternetAddress(&quot;w&quot; + mailFallbackCode + &quot;@&quot; + wc24Server) });
+<span class="fc" id="L217">        message.addHeader(&quot;RCPT TO&quot;, &quot;w&quot; + mailFallbackCode + &quot;@&quot; + wc24Server);</span>
+
+        // Add the original sender's Wii code as an AltName so it appears on the message
+        // board
+        // This is easier than messing with the message content, and shouldn't fuck up
+        // invisible mails (i.e Miis)
+<span class="fc" id="L223">        String b64WiiCode = Base64.getEncoder().encodeToString(wiiCode.getBytes(StandardCharsets.UTF_16BE));</span>
+<span class="fc" id="L224">        message.addHeader(&quot;X-Wii-AltName&quot;, b64WiiCode);</span>
+
+        // Output a string and pipe that into a RawMailItem
+<span class="fc" id="L227">        ByteArrayOutputStream os = new ByteArrayOutputStream();</span>
+<span class="fc" id="L228">        message.writeTo(os);</span>
+<span class="fc" id="L229">        log.log(Level.INFO, &quot;Unknown mail with subject &quot; + message.getSubject() + &quot; Forwarding to &quot; + mailFallbackCode);</span>
+<span class="fc" id="L230">        return new RawMailItem(mailFallbackCode, new String(os.toByteArray(), StandardCharsets.UTF_8));</span>
+    }
+
+    private String getWiiCode(String address) {
+
+        // Get wii code by stripping &quot;w&quot; and &quot;@wii.com&quot; from the sender's address
+<span class="fc" id="L236">        Matcher matcher = pattern.matcher(address);</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        while (matcher.find()) {</span>
+<span class="fc" id="L238">            return matcher.group(1);</span>
+        }
+        // No match = not a Wii
+<span class="fc" id="L241">        return null;</span>
+    }
+
+    /**
+     * Recover the attachment from a DIY Showcase Message and decode it to a file.
+     * 
+     * @param m the message to recover the attachment from
+     * @return LZ10-decompressed data
+     * @throws IOException
+     * @throws MessagingException
+     */
+    private byte[] getLZ10BodyPart(Message m) throws Exception {
+
+        // Get the second bodypart of the message
+<span class="nc" id="L255">        Multipart content = (Multipart) m.getContent();</span>
+
+        // Write bodypart to a file
+<span class="nc" id="L258">        Path compressedMio = Files.createTempFile(&quot;mio&quot;, &quot;.lz10&quot;);</span>
+<span class="nc" id="L259">        Files.copy(content.getBodyPart(1).getInputStream(), compressedMio, StandardCopyOption.REPLACE_EXISTING);</span>
+
+        // LZSS-decode it
+<span class="nc" id="L262">        String filePath = compressedMio.toFile().getAbsolutePath();</span>
+<span class="nc" id="L263">        new LZSS(application).LZS_Decode(filePath, filePath + &quot;d&quot;);</span>
+
+<span class="nc" id="L265">        return Files.readAllBytes(new File(filePath + &quot;d&quot;).toPath());</span>
+    }
+
+    private boolean saveSurveyAnswer(String sender, byte type, String title, byte stars, byte comment) {
+
+<span class="fc" id="L270">        try (Connection connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+
+<span class="nc" id="L272">            PreparedStatement ret = connection.prepareStatement(&quot;INSERT INTO Surveys VALUES (?,?,?,?,?,?)&quot;);</span>
+<span class="nc" id="L273">            ret.setLong(1, System.currentTimeMillis());</span>
+<span class="nc" id="L274">            ret.setInt(2, type &amp; 0xFF);</span>
+<span class="nc" id="L275">            ret.setString(3, title);</span>
+<span class="nc" id="L276">            ret.setInt(4, stars &amp; 0xFF);</span>
+<span class="nc" id="L277">            ret.setInt(5, comment &amp; 0xFF);</span>
+<span class="nc" id="L278">            ret.setString(6, sender);</span>
+
+<span class="nc" id="L280">            ret.executeUpdate();</span>
+
+<span class="nc" id="L282">            ret.close();</span>
+<span class="nc" id="L283">            connection.close();</span>
+<span class="nc" id="L284">            return true;</span>
+
+<span class="fc" id="L286">        } catch (SQLException e) {</span>
+<span class="fc" id="L287">            return false;</span>
+        }
+    }
+
+    private boolean saveFriendCode(String code) {
+<span class="fc" id="L292">        try (Connection connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+
+<span class="fc" id="L294">            PreparedStatement ret = connection.prepareStatement(&quot;INSERT INTO Friends VALUES (?)&quot;);</span>
+<span class="fc" id="L295">            ret.setString(1, code);</span>
+<span class="fc" id="L296">            ret.executeUpdate();</span>
+<span class="fc" id="L297">            ret.close();</span>
+
+<span class="fc" id="L299">            connection.close();</span>
+<span class="fc" id="L300">            return true;</span>
+
+<span class="fc" id="L302">        } catch (SQLException e) {</span>
+<span class="fc" id="L303">            return false;</span>
+        }
+    }
+
+    private boolean isFriendCodeSaved(String code) {
+<span class="fc" id="L308">        try (Connection connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+
+<span class="fc" id="L310">            PreparedStatement ret = connection.prepareStatement(&quot;select COUNT(*) from Friends WHERE friendcode = ?&quot;);</span>
+<span class="fc" id="L311">            ret.setString(1, code);</span>
+
+<span class="fc" id="L313">            ResultSet result = ret.executeQuery();</span>
+<span class="fc" id="L314">            int res = result.getInt(1);</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">            return (res == 1);</span>
+<span class="fc" id="L316">        } catch (SQLException e) {</span>
+<span class="fc" id="L317">            return false;</span>
+        }
+    }
+
+    /**
+     * Update pre-set WC24 collections with the newly added hash. A bit hacky but
+     * it'll do for now...
+     * 
+     * @param type type (G/RR/MMM)
+     * @param hash mio data MD5 hash
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    private void addToWC24Collection(String type, String hash) throws FileNotFoundException, IOException {
+
+<span class="nc" id="L332">        String collectionFile = dataDir + &quot;/collections/&quot;;</span>
+<span class="nc bnc" id="L333" title="All 4 branches missed.">        switch (type) {</span>
+            case &quot;G&quot;:
+<span class="nc" id="L335">                collectionFile += &quot;e_wl24_g&quot;;</span>
+<span class="nc" id="L336">                break;</span>
+            case &quot;RR&quot;:
+<span class="nc" id="L338">                collectionFile += &quot;e_wl24_r&quot;;</span>
+<span class="nc" id="L339">                break;</span>
+            case &quot;MMM&quot;:
+<span class="nc" id="L341">                collectionFile += &quot;e_wl24_m&quot;;</span>
+                break;
+        }
+
+<span class="nc" id="L345">        collectionFile += &quot;.json&quot;;</span>
+
+        // Try opening the matching JSON file
+<span class="nc" id="L348">        Collection c = CollectionUtils.GetCollectionFromFile(collectionFile);</span>
+<span class="nc" id="L349">        c.addMioHash(hash);</span>
+        // Overwrite the collectionfile
+<span class="nc" id="L351">        CollectionUtils.SaveCollectionToFile(c, collectionFile);</span>
+<span class="nc" id="L352">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

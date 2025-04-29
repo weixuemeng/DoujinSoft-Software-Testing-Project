@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WC24FriendServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">WC24FriendServlet.java</span></div><h1>WC24FriendServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import com.difegue.doujinsoft.wc24.MailItem;
+import com.difegue.doujinsoft.wc24.WiiConnect24Api;
+
+import javax.servlet.ServletContext;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * Servlet implementation class for automated Friend Requests.
+ */
+@WebServlet(&quot;/friendreq&quot;)
+public class WC24FriendServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public WC24FriendServlet() {
+<span class="fc" id="L25">        super();</span>
+<span class="fc" id="L26">    }</span>
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+	 * Sends a friend request to the specified friend code through WiiConnect24.
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+		
+		// obtains ServletContext
+<span class="fc" id="L35">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="fc" id="L36">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+
+<span class="fc bfc" id="L38" title="All 2 branches covered.">		if (request.getParameterMap().containsKey(&quot;code&quot;)) {</span>
+
+<span class="fc" id="L40">			String code = request.getParameter(&quot;code&quot;);</span>
+
+			try {
+				// Friend Request mail
+<span class="nc" id="L44">				MailItem friendReq = new MailItem(code);</span>
+<span class="nc" id="L45">				WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="nc" id="L46">				String wc24Response = wc24.sendMails(List.of(friendReq));</span>
+
+<span class="nc" id="L48">				response.getOutputStream().print(wc24Response);</span>
+<span class="fc" id="L49">			} catch (Exception e) {</span>
+<span class="fc" id="L50">				response.getOutputStream().print(e.getMessage());</span>
+<span class="nc" id="L51">			}</span>
+<span class="fc" id="L52">		} else</span>
+<span class="fc" id="L53">			response.getOutputStream().print(&quot;Please add a friend code.&quot;);</span>
+<span class="fc" id="L54">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+<span class="nc" id="L60">		doGet(request, response);</span>
+<span class="nc" id="L61">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

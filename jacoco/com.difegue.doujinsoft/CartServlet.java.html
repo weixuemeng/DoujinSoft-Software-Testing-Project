@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">CartServlet.java</span></div><h1>CartServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.io.Writer;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.difegue.doujinsoft.templates.Cart;
+import com.difegue.doujinsoft.utils.MioCompress;
+import com.difegue.doujinsoft.utils.MioUtils;
+import com.difegue.doujinsoft.wc24.MailItem;
+import com.difegue.doujinsoft.wc24.WiiConnect24Api;
+import com.google.gson.JsonElement;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.error.PebbleException;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
+import com.xperia64.diyedit.editors.GameEdit;
+import com.xperia64.diyedit.editors.MangaEdit;
+import com.xperia64.diyedit.editors.RecordEdit;
+import com.xperia64.diyedit.saveutils.SaveHandler;
+
+/**
+ * Servlet implementation class for the Cart.
+ */
+@WebServlet(&quot;/cart&quot;)
+@MultipartConfig
+public class CartServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+	private Logger ServletLog;
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+<span class="nc" id="L57">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L58">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L59">		String output = &quot;&quot;;</span>
+
+		try {
+
+<span class="nc" id="L63">			output = doStandardPage(application);</span>
+<span class="nc" id="L64">			response.getWriter().append(output);</span>
+
+<span class="nc" id="L66">		} catch (PebbleException e) {</span>
+<span class="nc" id="L67">			ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L68">		}</span>
+
+<span class="nc" id="L70">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+<span class="nc" id="L78">		boolean gotFileContentType = false;</span>
+<span class="nc" id="L79">		String output = &quot;Invalid file.&quot;;</span>
+
+<span class="nc bnc" id="L81" title="All 2 branches missed.">		if (request.getParameter(&quot;method&quot;).equals(&quot;wc24&quot;)) {</span>
+			// post contains a Wii number
+			try {
+<span class="nc" id="L84">				output = sendWC24(request, response);</span>
+<span class="nc" id="L85">			} catch (Exception e) {</span>
+<span class="nc" id="L86">				output = e.getMessage();</span>
+<span class="nc" id="L87">			}</span>
+		}
+
+<span class="nc bnc" id="L90" title="All 2 branches missed.">		if (request.getParameter(&quot;method&quot;).equals(&quot;savefile&quot;)) {</span>
+			// post contains a gameSave
+			try {
+<span class="nc" id="L93">				gotFileContentType = injectMios(request, response);</span>
+<span class="nc" id="L94">			} catch (Exception e) {</span>
+<span class="nc" id="L95">				ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L96">			}</span>
+		}
+
+		// Output is CT text/html unless we're sending out a file
+<span class="nc bnc" id="L100" title="All 2 branches missed.">		if (!gotFileContentType) {</span>
+<span class="nc" id="L101">			response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L102">			response.getWriter().append(output);</span>
+		}
+
+<span class="nc" id="L105">	}</span>
+
+	private String sendWC24(HttpServletRequest request, HttpServletResponse response) throws Exception {
+
+<span class="nc" id="L109">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L110">		String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+<span class="nc" id="L112">		Cart cartData = new Cart(request);</span>
+<span class="nc" id="L113">		String recipientNumber = request.getParameter(&quot;recipient&quot;);</span>
+
+<span class="nc" id="L115">		ServletLog.log(Level.INFO, &quot;Cart has &quot; + cartData.getGames().size() + &quot; games, &quot; + cartData.getRecords().size()</span>
+<span class="nc" id="L116">				+ &quot; records and &quot; + cartData.getManga().size() + &quot; manga.&quot;);</span>
+<span class="nc" id="L117">		ServletLog.log(Level.INFO, &quot;Checking out via WC24 mails to &quot; + recipientNumber);</span>
+<span class="nc" id="L118">		List&lt;MailItem&gt; mailsToSend = new ArrayList&lt;&gt;();</span>
+
+		// DIY mails
+<span class="nc" id="L121">		List&lt;String&gt; contentNames = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L123" title="All 2 branches missed.">		for (JsonElement o : cartData.getGames()) {</span>
+
+<span class="nc" id="L125">			String hash = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L126">			String mioPath = dataDir + &quot;/mio/game/&quot; + hash + &quot;.miozip&quot;;</span>
+<span class="nc" id="L127">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+<span class="nc" id="L128">			GameEdit data = new GameEdit(uncompressedMio.getAbsolutePath());</span>
+
+<span class="nc" id="L130">			contentNames.add(data.getName());</span>
+<span class="nc" id="L131">			mailsToSend.add(new MailItem(recipientNumber, data, MioUtils.Types.GAME, application));</span>
+<span class="nc" id="L132">		}</span>
+
+<span class="nc bnc" id="L134" title="All 2 branches missed.">		for (JsonElement o : cartData.getRecords()) {</span>
+
+<span class="nc" id="L136">			String hash = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L137">			String mioPath = dataDir + &quot;/mio/record/&quot; + hash + &quot;.miozip&quot;;</span>
+<span class="nc" id="L138">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+<span class="nc" id="L139">			RecordEdit data = new RecordEdit(uncompressedMio.getAbsolutePath());</span>
+
+<span class="nc" id="L141">			contentNames.add(data.getName());</span>
+<span class="nc" id="L142">			mailsToSend.add(new MailItem(recipientNumber, data, MioUtils.Types.RECORD, application));</span>
+<span class="nc" id="L143">		}</span>
+
+<span class="nc bnc" id="L145" title="All 2 branches missed.">		for (JsonElement o : cartData.getManga()) {</span>
+
+<span class="nc" id="L147">			String hash = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L148">			String mioPath = dataDir + &quot;/mio/manga/&quot; + hash + &quot;.miozip&quot;;</span>
+<span class="nc" id="L149">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+<span class="nc" id="L150">			MangaEdit data = new MangaEdit(uncompressedMio.getAbsolutePath());</span>
+
+<span class="nc" id="L152">			contentNames.add(data.getName());</span>
+<span class="nc" id="L153">			mailsToSend.add(new MailItem(recipientNumber, data, MioUtils.Types.MANGA, application));</span>
+<span class="nc" id="L154">		}</span>
+
+		// Recap mail
+<span class="nc" id="L157">		mailsToSend.add(new MailItem(recipientNumber, contentNames, false));</span>
+
+<span class="nc" id="L159">		WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="nc" id="L160">		return wc24.sendMails(mailsToSend);</span>
+	}
+
+	private boolean injectMios(HttpServletRequest request, HttpServletResponse response)
+			throws IOException, ServletException {
+
+<span class="nc" id="L166">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L167">		String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+<span class="nc" id="L169">		Cart cartData = new Cart(request);</span>
+
+		// Call DIYEdit's SaveHandler on it, and it only does everything.
+<span class="nc" id="L172">		ServletLog.log(Level.INFO, &quot;Cart has &quot; + cartData.getGames().size() + &quot; games, &quot; + cartData.getRecords().size()</span>
+<span class="nc" id="L173">				+ &quot; records and &quot; + cartData.getManga().size() + &quot; manga.&quot;);</span>
+<span class="nc" id="L174">		ServletLog.log(Level.INFO, &quot;Checking out to savefile.&quot;);</span>
+<span class="nc" id="L175">		SaveHandler sHand = new SaveHandler(cartData.getSaveFile().getAbsolutePath());</span>
+
+		// Go through our arrays and inject mios from the DB
+<span class="nc bnc" id="L178" title="All 2 branches missed.">		for (JsonElement o : cartData.getGames()) {</span>
+
+<span class="nc" id="L180">			String id = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L181">			String mioPath = dataDir + &quot;/mio/game/&quot; + id + &quot;.miozip&quot;;</span>
+<span class="nc" id="L182">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+
+<span class="nc" id="L184">			int emptySlot = getEmptySlot(sHand, 0);</span>
+
+			// Abort in case of bad file, no need to waste time.
+<span class="nc bnc" id="L187" title="All 2 branches missed.">			if (emptySlot == -2)</span>
+<span class="nc" id="L188">				return false;</span>
+
+<span class="nc bnc" id="L190" title="All 2 branches missed.">			if (emptySlot != -1)</span>
+<span class="nc" id="L191">				sHand.setMio(uncompressedMio.getAbsolutePath(), emptySlot);</span>
+
+<span class="nc" id="L193">		}</span>
+
+<span class="nc bnc" id="L195" title="All 2 branches missed.">		for (JsonElement o : cartData.getRecords()) {</span>
+
+<span class="nc" id="L197">			String id = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L198">			String mioPath = dataDir + &quot;/mio/record/&quot; + id + &quot;.miozip&quot;;</span>
+<span class="nc" id="L199">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+
+<span class="nc" id="L201">			int emptySlot = getEmptySlot(sHand, 1);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">			if (emptySlot != -1)</span>
+<span class="nc" id="L203">				sHand.setMio(uncompressedMio.getAbsolutePath(), emptySlot);</span>
+
+<span class="nc" id="L205">		}</span>
+
+<span class="nc bnc" id="L207" title="All 2 branches missed.">		for (JsonElement o : cartData.getManga()) {</span>
+
+<span class="nc" id="L209">			String id = o.getAsJsonObject().get(&quot;id&quot;).getAsString();</span>
+<span class="nc" id="L210">			String mioPath = dataDir + &quot;/mio/manga/&quot; + id + &quot;.miozip&quot;;</span>
+<span class="nc" id="L211">			File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+
+<span class="nc" id="L213">			int emptySlot = getEmptySlot(sHand, 2);</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">			if (emptySlot != -1)</span>
+<span class="nc" id="L215">				sHand.setMio(uncompressedMio.getAbsolutePath(), emptySlot);</span>
+
+<span class="nc" id="L217">		}</span>
+
+<span class="nc" id="L219">		sHand.saveChanges();</span>
+
+		// gets MIME type of the file
+<span class="nc" id="L222">		String mimeType = &quot;application/octet-stream&quot;;</span>
+		// Set response
+<span class="nc" id="L224">		response.setContentType(mimeType);</span>
+
+		// forces download
+<span class="nc" id="L227">		String headerKey = &quot;Content-Disposition&quot;;</span>
+<span class="nc" id="L228">		String headerValue = String.format(&quot;attachment; filename=\&quot;%s\&quot;&quot;, &quot;DoujinSoft-imported.bin&quot;);</span>
+<span class="nc" id="L229">		response.setHeader(headerKey, headerValue);</span>
+
+		// obtains response's output stream
+<span class="nc" id="L232">		OutputStream outStream = response.getOutputStream();</span>
+
+<span class="nc" id="L234">		byte[] buffer = new byte[4096];</span>
+<span class="nc" id="L235">		int bytesRead = -1;</span>
+<span class="nc" id="L236">		FileInputStream inStream = new FileInputStream(cartData.getSaveFile());</span>
+
+<span class="nc bnc" id="L238" title="All 2 branches missed.">		while ((bytesRead = inStream.read(buffer)) != -1) {</span>
+<span class="nc" id="L239">			outStream.write(buffer, 0, bytesRead);</span>
+		}
+
+<span class="nc" id="L242">		inStream.close();</span>
+<span class="nc" id="L243">		outStream.close();</span>
+<span class="nc" id="L244">		cartData.getSaveFile().delete();</span>
+
+<span class="nc" id="L246">		return true;</span>
+	}
+
+	/*
+	 * Go through the save for a given mode (0: games, 1: records, 2: manga) and
+	 * return the first empty slot.
+	 * Returns -1 if there are no slots available, -2 if the savefile is incorrect.
+	 */
+	private int getEmptySlot(SaveHandler sHand, int mode) {
+
+<span class="nc" id="L256">		ArrayList&lt;byte[]&gt; b = sHand.getMios(mode);</span>
+
+<span class="nc bnc" id="L258" title="All 2 branches missed.">		if (b == null) {</span>
+<span class="nc" id="L259">			return -2;</span>
+		}
+
+		// Returns the first null slot
+<span class="nc bnc" id="L263" title="All 2 branches missed.">		for (byte[] mio : b) {</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">			if (mio == null)</span>
+<span class="nc" id="L265">				return b.indexOf(mio);</span>
+<span class="nc" id="L266">		}</span>
+
+<span class="nc" id="L268">		return -1;</span>
+	}
+
+	/**
+	 * @see HttpServlet#HttpServlet()
+	 */
+	public CartServlet() {
+<span class="nc" id="L275">		super();</span>
+<span class="nc" id="L276">		ServletLog = Logger.getLogger(&quot;CartServlet&quot;);</span>
+<span class="nc" id="L277">		ServletLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));</span>
+<span class="nc" id="L278">	}</span>
+
+	// Generates the regular landing page for the cart.
+	private String doStandardPage(ServletContext application) throws PebbleException, IOException {
+
+<span class="nc" id="L283">		Map&lt;String, Object&gt; context = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L284">		context.put(&quot;wiiNumber&quot;, System.getenv(&quot;WII_NUMBER&quot;));</span>
+
+<span class="nc" id="L286">		PebbleEngine engine = new PebbleEngine.Builder().build();</span>
+		PebbleTemplate compiledTemplate;
+
+		// Getting base template
+<span class="nc" id="L290">		compiledTemplate = engine.getTemplate(application.getRealPath(&quot;/WEB-INF/templates/cart.html&quot;));</span>
+
+		// Output to client
+<span class="nc" id="L293">		Writer writer = new StringWriter();</span>
+<span class="nc" id="L294">		compiledTemplate.evaluate(writer, context);</span>
+<span class="nc" id="L295">		String output = writer.toString();</span>
+
+<span class="nc" id="L297">		return output;</span>
+
+	}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

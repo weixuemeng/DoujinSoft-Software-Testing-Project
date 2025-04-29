@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BaseMio.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.templates</a> &gt; <span class="el_source">BaseMio.java</span></div><h1>BaseMio.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.templates;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import com.difegue.doujinsoft.utils.MioStorage;
+import com.difegue.doujinsoft.utils.MioUtils;
+import com.xperia64.diyedit.metadata.Metadata;
+
+/*
+ * Base class used for binding with pebble templates.
+ */
+public class BaseMio {
+
+	/**
+	 * Basic constructor from a generic mio Metadata object.
+	 * 
+	 * @param m
+	 */
+<span class="fc" id="L20">	public BaseMio(Metadata m) {</span>
+
+<span class="fc" id="L22">		name = m.getName();</span>
+<span class="fc" id="L23">		hash = MioStorage.computeMioHash(m.file);</span>
+<span class="fc" id="L24">		System.out.println(&quot;hash&quot;);</span>
+<span class="fc" id="L25">		System.out.println(hash);</span>
+<span class="fc" id="L26">		creator = m.getCreator();</span>
+<span class="fc" id="L27">		brand = m.getBrand();</span>
+<span class="fc" id="L28">		timestamp = MioUtils.getTimeString(m.getTimestamp());</span>
+
+<span class="fc" id="L30">		int type = m.file.length;</span>
+<span class="pc bpc" id="L31" title="1 of 4 branches missed.">		switch (type) {</span>
+			case MioUtils.Types.GAME:
+<span class="fc" id="L33">				mioID = &quot;G-&quot;;</span>
+<span class="fc" id="L34">				break;</span>
+			case MioUtils.Types.MANGA:
+<span class="fc" id="L36">				mioID = &quot;M-&quot;;</span>
+<span class="fc" id="L37">				break;</span>
+			case MioUtils.Types.RECORD:
+<span class="fc" id="L39">				mioID = &quot;R-&quot;;</span>
+				break;
+		}
+
+<span class="fc" id="L43">		mioID += MioUtils.computeMioID(m);</span>
+<span class="fc" id="L44">		creatorId = m.getCreatorId();</span>
+<span class="fc" id="L45">		cartridgeId = m.getCartridgeId();</span>
+
+<span class="fc bfc" id="L47" title="All 2 branches covered.">		if (m.getDescription().length() &gt; 19) {</span>
+<span class="fc" id="L48">			mioDesc1 = m.getDescription().substring(0, 18);</span>
+<span class="fc" id="L49">			mioDesc2 = m.getDescription().substring(18);</span>
+		} else {
+<span class="fc" id="L51">			mioDesc1 = m.getDescription();</span>
+		}
+
+<span class="fc" id="L54">	}</span>
+
+<span class="fc" id="L56">	public BaseMio(ResultSet result) throws SQLException {</span>
+
+		// Compute timestamp
+<span class="fc" id="L59">		timestamp = MioUtils.getTimeString(result.getInt(&quot;timeStamp&quot;));</span>
+
+<span class="fc" id="L61">		String desc = result.getString(&quot;description&quot;);</span>
+<span class="fc" id="L62">		colorLogo = result.getString(&quot;colorLogo&quot;);</span>
+
+		// Special case to make black logos readable on the user interface
+<span class="fc bfc" id="L65" title="All 2 branches covered.">		if (colorLogo.equals(&quot;grey darken-4&quot;))</span>
+<span class="fc" id="L66">			colorLogo = &quot;grey&quot;;</span>
+
+<span class="fc" id="L68">		name = result.getString(&quot;name&quot;);</span>
+<span class="fc" id="L69">		mioID = result.getString(&quot;id&quot;);</span>
+<span class="fc" id="L70">		hash = result.getString(&quot;hash&quot;);</span>
+<span class="fc" id="L71">		brand = result.getString(&quot;brand&quot;);</span>
+<span class="fc" id="L72">		creator = result.getString(&quot;creator&quot;);</span>
+<span class="fc" id="L73">		creatorId = result.getString(&quot;creatorID&quot;);</span>
+<span class="fc" id="L74">		cartridgeId = result.getString(&quot;cartridgeID&quot;);</span>
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">		if (desc.length() &gt; 18) {</span>
+<span class="fc" id="L77">			mioDesc1 = desc.substring(0, 18);</span>
+<span class="fc" id="L78">			mioDesc2 = desc.substring(18);</span>
+		} else {
+<span class="fc" id="L80">			mioDesc1 = desc;</span>
+<span class="fc" id="L81">			mioDesc2 = &quot;&quot;;</span>
+		}
+
+<span class="fc bfc" id="L84" title="All 2 branches covered.">		if (name.replaceAll(&quot;\\s+&quot;, &quot;&quot;).equals(&quot;&quot;))</span>
+<span class="fc" id="L85">			name = &quot;No Title&quot;;</span>
+
+<span class="fc bfc" id="L87" title="All 2 branches covered.">		if (mioDesc1.replaceAll(&quot;\\s+&quot;, &quot;&quot;).equals(&quot;&quot;))</span>
+<span class="fc" id="L88">			mioDesc1 = &quot;No Description.&quot;;</span>
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">		if (this.mioID.contains(&quot;them&quot;))</span>
+<span class="fc" id="L91">			specialBrand = &quot;theme&quot;;</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">		if (this.mioID.contains(&quot;wari&quot;))</span>
+<span class="fc" id="L93">			specialBrand = &quot;wario&quot;;</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">		if (this.mioID.contains(&quot;nint&quot;))</span>
+<span class="fc" id="L95">			specialBrand = &quot;nintendo&quot;;</span>
+
+<span class="fc" id="L97">		colorCart = result.getString(&quot;color&quot;);</span>
+<span class="fc" id="L98">		logo = result.getInt(&quot;logo&quot;);</span>
+
+<span class="fc" id="L100">	}</span>
+
+	public String name, timestamp, mioID, hash, brand, creator,
+			mioDesc1, mioDesc2, colorLogo, colorCart, specialBrand,
+			creatorId, cartridgeId;
+	public int logo;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

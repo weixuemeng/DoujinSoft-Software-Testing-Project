@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MailItem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.wc24</a> &gt; <span class="el_source">MailItem.java</span></div><h1>MailItem.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.wc24;
+
+import com.difegue.doujinsoft.utils.MioUtils;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.error.PebbleException;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
+import com.xperia64.diyedit.metadata.Metadata;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import javax.servlet.ServletContext;
+
+public class MailItem {
+
+    public String sender, recipient, wc24Server, base64EncodedAttachment, wiiFace;
+    public int attachmentType;
+
+    /**
+     * Create a WC24 mail containing DIY data to send to Showcase.
+     * 
+     * @param wiiCode Friend Code to send the mail to
+     * @param diyData DIY file to send
+     * @param type    type of the file
+     * @param context servletContext to find the folder where the lzss executables
+     *                are located this is absolutely disgusting holy fuck spare him
+     *                his life from this monstrosity
+     * @throws Exception
+     */
+<span class="fc" id="L37">    public MailItem(String wiiCode, Metadata diyData, int type, ServletContext context) throws Exception {</span>
+
+<span class="fc" id="L39">        attachmentType = type;</span>
+<span class="fc" id="L40">        initializeFromEnvironment(wiiCode);</span>
+
+<span class="fc" id="L42">        Path compressedMio = Files.createTempFile(&quot;mio&quot;, &quot;.lz10&quot;);</span>
+<span class="fc" id="L43">        try (FileOutputStream fos = new FileOutputStream(compressedMio.toFile())) {</span>
+            // Re-write the diy data to a file that we'll compress with LZSS native
+<span class="fc" id="L45">            fos.write(diyData.file);</span>
+        }
+        // Compress the bytes with LZ10/LZSS
+<span class="fc" id="L48">        String filePath = compressedMio.toFile().getAbsolutePath();</span>
+
+<span class="fc" id="L50">        new LZSS(context).LZS_Encode(filePath, filePath + &quot;d&quot;);</span>
+<span class="nc" id="L51">        byte[] mioData = Files.readAllBytes(new File(filePath + &quot;d&quot;).toPath());</span>
+
+        // Base64 encode 'em and we're good.
+        // Add a linebreak every 76 characters for MIME compliancy (The Wii doesn't care
+        // but it looks nicer)
+<span class="nc" id="L56">        base64EncodedAttachment = Base64.getEncoder().encodeToString(mioData).replaceAll(&quot;(.{76})&quot;, &quot;$1\n&quot;);</span>
+<span class="nc" id="L57">    }</span>
+
+    /**
+     * Create a WC24 recap mail to send to the Wii Message Board.
+     * 
+     * @param wiiCode      Friend Code to send the mail to
+     * @param contentNames DIY content to enumerate in the mail
+     * @param incoming     Whether this recap is for incoming or outgoing content.
+     */
+<span class="fc" id="L66">    public MailItem(String wiiCode, List&lt;String&gt; contentNames, boolean incoming) throws Exception {</span>
+
+        String message;
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (incoming) {</span>
+<span class="fc" id="L71">            attachmentType = 2;</span>
+<span class="fc" id="L72">            message = RECAP_HEADER_INCOMING;</span>
+        } else {
+<span class="fc" id="L74">            attachmentType = 1;</span>
+<span class="fc" id="L75">            message = RECAP_HEADER_OUTGOING;</span>
+        }
+
+<span class="fc" id="L78">        initializeFromEnvironment(wiiCode);</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        for (String s : contentNames) {</span>
+<span class="fc" id="L81">            message += &quot;* &quot; + s + &quot;\n&quot;;</span>
+<span class="fc" id="L82">        }</span>
+
+<span class="fc" id="L84">        message += &quot;\n&quot; + RECAP_FOOTER;</span>
+
+        // Encode the message in UTF-16BE as expected by the Wii, then wrap it in base64
+<span class="fc" id="L87">        byte[] utf16 = StandardCharsets.UTF_16BE.encode(message).array();</span>
+<span class="fc" id="L88">        base64EncodedAttachment = Base64.getEncoder().encodeToString(utf16).replaceAll(&quot;(.{76})&quot;, &quot;$1\n&quot;);</span>
+
+        // Pick a random Mii
+<span class="fc" id="L91">        int idx = new Random().nextInt(LETTERHEAD_MIIS.length);</span>
+<span class="fc" id="L92">        wiiFace = LETTERHEAD_MIIS[idx];</span>
+<span class="fc" id="L93">    }</span>
+
+    /**
+     * Create a Wii Mail with the specified message. Uses the custom DoujinSoft mail
+     * template.
+     * 
+     * @param wiiCode
+     * @param message 35 columns wide for best display on Wiis.
+     * @throws Exception
+     */
+<span class="fc" id="L103">    public MailItem(String wiiCode, String message) throws Exception {</span>
+
+<span class="fc" id="L105">        attachmentType = 3;</span>
+<span class="fc" id="L106">        initializeFromEnvironment(wiiCode);</span>
+
+        // Encode the message in UTF-16BE as expected by the Wii, then wrap it in base64
+<span class="fc" id="L109">        byte[] utf16 = StandardCharsets.UTF_16BE.encode(message).array();</span>
+<span class="fc" id="L110">        base64EncodedAttachment = Base64.getEncoder().encodeToString(utf16).replaceAll(&quot;(.{76})&quot;, &quot;$1\n&quot;);</span>
+
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * Create a WC24 friend request mail.
+     * 
+     * @param wiiCode
+     */
+<span class="fc" id="L119">    public MailItem(String wiiCode) throws Exception {</span>
+<span class="fc" id="L120">        attachmentType = 0;</span>
+<span class="fc" id="L121">        initializeFromEnvironment(wiiCode);</span>
+<span class="fc" id="L122">    }</span>
+
+    /**
+     * Craft the string version of the mail, using templates.
+     * 
+     * @return
+     * @throws PebbleException
+     * @throws IOException
+     */
+    public String renderString(String templatePath) throws PebbleException, IOException {
+<span class="nc" id="L132">        PebbleEngine engine = new PebbleEngine.Builder().build();</span>
+<span class="nc" id="L133">        PebbleTemplate template = null;</span>
+<span class="nc" id="L134">        System.out.println(&quot;12&quot;);</span>
+
+        // Note: The Wii normally expects mails to use CRLF for line endings.
+        // Both the RC24 and WL24 mail servers smooth this over, but it's a thing to
+        // consider for future potential backends!
+<span class="nc bnc" id="L139" title="All 8 branches missed.">        switch (attachmentType) {</span>
+            case 0:
+<span class="nc" id="L141">                template = engine.getTemplate(templatePath + (&quot;/friend_request.eml&quot;));</span>
+<span class="nc" id="L142">                break;</span>
+            case 1:
+<span class="nc" id="L144">                template = engine.getTemplate(templatePath + (&quot;/recap_mail.eml&quot;));</span>
+<span class="nc" id="L145">                break;</span>
+            case 2:
+<span class="nc" id="L147">                template = engine.getTemplate(templatePath + (&quot;/recap_mail_blue.eml&quot;));</span>
+<span class="nc" id="L148">                break;</span>
+            case 3:
+<span class="nc" id="L150">                template = engine.getTemplate(templatePath + (&quot;/doujinsoft_mail.eml&quot;));</span>
+<span class="nc" id="L151">                break;</span>
+            case MioUtils.Types.GAME:
+<span class="nc" id="L153">                template = engine.getTemplate(templatePath + (&quot;/game_mail.eml&quot;));</span>
+<span class="nc" id="L154">                break;</span>
+            case MioUtils.Types.MANGA:
+<span class="nc" id="L156">                template = engine.getTemplate(templatePath + (&quot;/manga_mail.eml&quot;));</span>
+<span class="nc" id="L157">                break;</span>
+            case MioUtils.Types.RECORD:
+<span class="nc" id="L159">                template = engine.getTemplate(templatePath + (&quot;/record_mail.eml&quot;));</span>
+                break;
+        }
+<span class="nc" id="L162">        System.out.println(&quot;13&quot;);</span>
+<span class="nc" id="L163">        System.out.println(attachmentType);</span>
+<span class="nc" id="L164">        System.out.println(&quot;14&quot;);</span>
+
+<span class="nc" id="L166">        Map&lt;String, Object&gt; context = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L167">        context.put(&quot;mail&quot;, this);</span>
+
+<span class="nc" id="L169">        Writer writer = new StringWriter();</span>
+<span class="nc" id="L170">        template.evaluate(writer, context);</span>
+<span class="nc" id="L171">        return writer.toString();</span>
+    }
+
+    private void initializeFromEnvironment(String recipientCode) throws Exception {
+<span class="fc bfc" id="L175" title="All 2 branches covered.">        if (!System.getenv().containsKey(&quot;WII_NUMBER&quot;))</span>
+<span class="fc" id="L176">            throw new Exception(</span>
+                    &quot;Wii sender friend number not specified. Please set the WII_NUMBER environment variable.&quot;);
+
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        if (!System.getenv().containsKey(&quot;WC24_SERVER&quot;))</span>
+<span class="fc" id="L180">            throw new Exception(</span>
+                    &quot;WiiConnect24 server url not specified. Please set the WC24_SERVER environment variable.&quot;);
+
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        if (!validateFriendCode(recipientCode))</span>
+<span class="fc" id="L184">            throw new Exception(&quot;Invalid Wii Friend Code.&quot;);</span>
+
+<span class="fc" id="L186">        sender = System.getenv(&quot;WII_NUMBER&quot;);</span>
+<span class="fc" id="L187">        recipient = recipientCode;</span>
+
+<span class="fc" id="L189">        wc24Server = System.getenv(&quot;WC24_SERVER&quot;);</span>
+<span class="fc" id="L190">    }</span>
+
+    private boolean validateFriendCode(String code) {
+
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        if (code.length() != 16)</span>
+<span class="fc" id="L195">            return false;</span>
+
+<span class="fc" id="L197">        return code.chars().allMatch(x -&gt; Character.isDigit(x));</span>
+    }
+
+<span class="fc" id="L200">    private static String RECAP_HEADER_INCOMING = &quot;Thank you for using DoujinSoft!\n&quot; +</span>
+            &quot;\n&quot; +
+            &quot;You're receiving this message to      acknowledge that we've received and  added the following to our database:\n\n&quot;;
+
+<span class="fc" id="L204">    private static String RECAP_HEADER_OUTGOING = &quot;Thank you for using DoujinSoft!\n&quot; +</span>
+            &quot;\n&quot; +
+            &quot;The following content has been sent  to your Wii alongside this message:\n\n&quot;;
+
+<span class="fc" id="L208">    private static String RECAP_FOOTER = &quot;~~~~~ Service provided for fun ~~~~~\n&quot; +</span>
+            &quot;~~~~~     by WiiLink and     ~~~~~\n&quot; +
+            &quot;~~~~~    Difegue @ TVC-16    ~~~~~&quot;;
+
+<span class="fc" id="L212">    private static String[] LETTERHEAD_MIIS = {</span>
+            &quot;gBYAQwAuAE4AbwByAHIAaQBzAAAAAFtAgZX3KDb4KCzG7AuQaKuokFxM\n BmloSrjSAIr9DiUEAFcAbwBsAHYAZQByAGkAbgBlAAA=\n&quot;, // Chuck
+                                                                                                                         // Norris
+            &quot;gAAATQBpAHkAYQBtAG8AdABvAAAAAFtAhl8LZ29KhAglQIQAsj0EolyN\n BEBCSYitAIoAiiUEAE0AYQB0AHkAegB1AHoAdQAAAAA=\n&quot;, // Miyamoto
+            &quot;gAAASQB3AGEAdABhAAAAAAAAAAAAAGVUhl8KkW9KhAjlwFggSb0Kwlxu\n CGBzWUCuSowAiiUEAE0AYQB0AHkAegB1AHoAdQAAAAA=\n&quot;, // Iwata
+            &quot;UWYAbQBlAHkAbwBuAAAAAAAAAAAAAAALgRz5xwO2IGWARApAkP0wTISQ\n DoQAWEAOChEAiiUFMNcwyzCqAAAAAAAAAAAAAAAAAAA=\n&quot;, // meyon
+            &quot;QBQAbwBzAGEAcQBhAAAAAAAAAAAAAAAAgb1lBlRWMF6ARI7AQT0JFRhg\n DwQAWJgOAIoAiiUFAEEALgBKJgYAAAAAAAAAAAAAAAA=\n&quot;, // osaqa
+            &quot;FuQAVAAuACAATQBlAGkAagBpAG4AAExggkpBim9KhAgkBDxAoX0oolxs\n CERTSHiNAIoAiiUFAFQALgAgAE0AZQBpAGoAaQBuAAA=\n&quot;, // Meijin
+            &quot;AAQAVwBhAHIAaQBvAAAAAAAAAAAAAE9/gHv6E8I+IRitwHIAsUAREKyq\n ikBWGHEKAEAAgEYQAFQAbwBjAGMAaQAAAAAAAAAAAAA=\n&quot;, // Wario
+            &quot;ABAAVwBhAGwAdQBpAGcAaQAAAAAAAH8AgOynWMI+IRhABHJAeQAREBjJ\n iiA2KDEMAIoAiiUEAFQAbwBjAGMAaQAAAAAAAAAAAAA=\n&quot; // Waluigi
+    };
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

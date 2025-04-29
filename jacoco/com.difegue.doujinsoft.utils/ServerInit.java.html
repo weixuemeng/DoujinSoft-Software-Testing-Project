@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServerInit.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">ServerInit.java</span></div><h1>ServerInit.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+import java.io.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+import java.util.Scanner;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import com.difegue.doujinsoft.wc24.MailItemParser;
+import com.difegue.doujinsoft.wc24.WiiConnect24Api;
+
+/*
+ * Ran on each server startup - Handles database updating.
+ */
+<span class="fc" id="L26">public class ServerInit implements javax.servlet.ServletContextListener {</span>
+
+    private ScheduledExecutorService scheduler;
+
+    // Database structure, straightforward stuff
+    private void databaseDefinition(Statement statement) throws SQLException {
+<span class="fc" id="L32">        statement.executeUpdate(&quot;CREATE TABLE IF NOT EXISTS Games &quot;</span>
+                + &quot;(hash TEXT, id TEXT, name TEXT, normalizedName TEXT, creator TEXT, brand TEXT, description TEXT, timeStamp INTEGER, color TEXT, colorLogo TEXT, logo INTEGER, &quot;
+                + &quot;previewPic TEXT, creatorID TEXT, isNsfw BOOLEAN DEFAULT 0, cartridgeID TEXT, PRIMARY KEY(`hash`) )&quot;);
+
+<span class="fc" id="L36">        statement.executeUpdate(&quot;CREATE TABLE IF NOT EXISTS Manga &quot;</span>
+                + &quot;(hash TEXT, id TEXT, name TEXT, normalizedName TEXT, creator TEXT, brand TEXT, description TEXT, timeStamp INTEGER, color TEXT, colorLogo TEXT, logo INTEGER, &quot;
+                + &quot;frame0 TEXT, frame1 TEXT, frame2 TEXT, frame3 TEXT, creatorID TEXT, cartridgeID TEXT, PRIMARY KEY(`hash`) )&quot;);
+
+<span class="fc" id="L40">        statement.executeUpdate(&quot;CREATE TABLE IF NOT EXISTS Records &quot;</span>
+                + &quot;(hash TEXT, id TEXT, name TEXT, normalizedName TEXT, creator TEXT, brand TEXT, description TEXT, timeStamp INTEGER, color TEXT, colorLogo TEXT, logo INTEGER, &quot;
+                + &quot;creatorID TEXT, cartridgeID TEXT, PRIMARY KEY(`hash`) )&quot;);
+
+<span class="fc" id="L44">        statement.executeUpdate(&quot;CREATE TABLE IF NOT EXISTS Surveys &quot;</span>
+                + &quot;(timestamp INTEGER, type INTEGER, name TEXT, stars INTEGER, commentId INTEGER, friendcode TEXT,&quot;
+                + &quot;PRIMARY KEY(`timestamp`) )&quot;);
+
+<span class="fc" id="L48">        statement.executeUpdate(&quot;CREATE TABLE IF NOT EXISTS Friends &quot;</span>
+                + &quot;(friendcode TEXT, &quot;
+                + &quot;PRIMARY KEY(`friendcode`) )&quot;);
+<span class="fc" id="L51">    }</span>
+
+    @Override
+    public void contextInitialized(ServletContextEvent arg0) {
+
+        try {
+<span class="fc" id="L57">            Class.forName(&quot;org.sqlite.JDBC&quot;);</span>
+<span class="nc" id="L58">        } catch (ClassNotFoundException e1) {</span>
+<span class="nc" id="L59">            e1.printStackTrace();</span>
+<span class="fc" id="L60">        }</span>
+<span class="fc" id="L61">        System.out.println(&quot;DoujinSoft Store Deployed.&quot;);</span>
+
+        // Hee to the ho and here we go
+<span class="fc" id="L64">        Logger SQLog = Logger.getLogger(&quot;SQLite&quot;);</span>
+<span class="fc" id="L65">        SQLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));</span>
+<span class="fc" id="L66">        ServletContext application = arg0.getServletContext();</span>
+<span class="fc" id="L67">        String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+<span class="fc" id="L69">        try (Connection connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+            // Create database if nonexistent
+<span class="fc" id="L71">            SQLog.log(Level.INFO, &quot;Connected to database at &quot; + dataDir + &quot;/mioDatabase.sqlite&quot;);</span>
+
+<span class="fc" id="L73">            Statement statement = connection.createStatement();</span>
+<span class="fc" id="L74">            statement.setQueryTimeout(30); // set timeout to 30 sec.</span>
+
+<span class="fc" id="L76">            databaseDefinition(statement);</span>
+
+            // Look for a WC24 mail dump file and parse it if it exists
+<span class="fc" id="L79">            SQLog.log(Level.INFO, &quot;Looking for mails.wc24 file...&quot;);</span>
+<span class="fc" id="L80">            File wc24Mails = new File(dataDir + &quot;/mails.wc24&quot;);</span>
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            if (wc24Mails.exists()) {</span>
+<span class="fc" id="L83">                try (Scanner s = new Scanner(wc24Mails)) {</span>
+<span class="fc" id="L84">                    String emailData = s.useDelimiter(&quot;\\Z&quot;).next();</span>
+<span class="fc" id="L85">                    new MailItemParser(application).consumeEmails(emailData);</span>
+                }
+<span class="fc" id="L87">                wc24Mails.delete();</span>
+            }
+
+            // Create the mio directory if it doesn't exist - although that means we
+            // probably won't find any games to parse...
+<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (!new File(dataDir + &quot;/mio/&quot;).exists())</span>
+<span class="fc" id="L93">                new File(dataDir + &quot;/mio/&quot;).mkdirs();</span>
+
+            // Parse .mios in &quot;new&quot; folder before renaming+moving them
+<span class="fc" id="L96">            SQLog.log(Level.INFO, &quot;Looking for new .mio files...&quot;);</span>
+<span class="fc" id="L97">            MioStorage.ScanForNewMioFiles(dataDir, SQLog);</span>
+
+<span class="fc" id="L99">            statement.executeUpdate(&quot;PRAGMA journal_mode=WAL;&quot;);</span>
+<span class="fc" id="L100">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_idx;&quot;);</span>
+<span class="fc" id="L101">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_idx;&quot;);</span>
+<span class="fc" id="L102">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_idx;&quot;);</span>
+<span class="fc" id="L103">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_search_idx;&quot;);</span>
+<span class="fc" id="L104">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_search_idx;&quot;);</span>
+<span class="fc" id="L105">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_search_idx;&quot;);</span>
+<span class="fc" id="L106">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_search_idx2;&quot;);</span>
+<span class="fc" id="L107">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_search_idx2;&quot;);</span>
+<span class="fc" id="L108">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_search_idx2;&quot;);</span>
+<span class="fc" id="L109">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_search_idx3;&quot;);</span>
+<span class="fc" id="L110">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_search_idx3;&quot;);</span>
+<span class="fc" id="L111">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_search_idx3;&quot;);</span>
+<span class="fc" id="L112">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_search_idx4;&quot;);</span>
+<span class="fc" id="L113">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_search_idx4;&quot;);</span>
+<span class="fc" id="L114">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_search_idx4;&quot;);</span>
+<span class="fc" id="L115">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Games_search_idx5;&quot;);</span>
+<span class="fc" id="L116">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Manga_search_idx5;&quot;);</span>
+<span class="fc" id="L117">            statement.executeUpdate(&quot;DROP INDEX IF EXISTS Record_search_idx5;&quot;);</span>
+
+            // Rebuild indexes
+<span class="fc" id="L120">            statement.executeUpdate(&quot;CREATE INDEX Games_idx ON Games (normalizedName ASC, id);&quot;);</span>
+<span class="fc" id="L121">            statement.executeUpdate(&quot;CREATE INDEX Manga_idx ON Manga (normalizedName ASC, id);&quot;);</span>
+<span class="fc" id="L122">            statement.executeUpdate(&quot;CREATE INDEX Record_idx ON Records (normalizedName ASC, id);&quot;);</span>
+<span class="fc" id="L123">            statement.executeUpdate(&quot;CREATE INDEX Games_search_idx ON Games (name COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L124">            statement.executeUpdate(&quot;CREATE INDEX Manga_search_idx ON Manga (name COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L125">            statement.executeUpdate(&quot;CREATE INDEX Record_search_idx ON Records (name COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L126">            statement.executeUpdate(&quot;CREATE INDEX Games_search_idx2 ON Games (creator COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L127">            statement.executeUpdate(&quot;CREATE INDEX Manga_search_idx2 ON Manga (creator COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L128">            statement.executeUpdate(&quot;CREATE INDEX Record_search_idx2 ON Records (creator COLLATE NOCASE);&quot;);</span>
+<span class="fc" id="L129">            statement.executeUpdate(&quot;CREATE INDEX Games_search_idx3 ON Games (timeStamp);&quot;);</span>
+<span class="fc" id="L130">            statement.executeUpdate(&quot;CREATE INDEX Manga_search_idx3 ON Manga (timeStamp);&quot;);</span>
+<span class="fc" id="L131">            statement.executeUpdate(&quot;CREATE INDEX Record_search_idx3 ON Records (timeStamp);&quot;);</span>
+
+<span class="fc" id="L133">            statement.executeUpdate(&quot;CREATE INDEX Games_search_idx4 ON Games (cartridgeID);&quot;);</span>
+<span class="fc" id="L134">            statement.executeUpdate(&quot;CREATE INDEX Manga_search_idx4 ON Manga (cartridgeID);&quot;);</span>
+<span class="fc" id="L135">            statement.executeUpdate(&quot;CREATE INDEX Record_search_idx4 ON Records (cartridgeID);&quot;);</span>
+
+<span class="fc" id="L137">            statement.executeUpdate(&quot;CREATE INDEX Games_search_idx5 ON Games (creatorID);&quot;);</span>
+<span class="fc" id="L138">            statement.executeUpdate(&quot;CREATE INDEX Manga_search_idx5 ON Manga (creatorID);&quot;);</span>
+<span class="fc" id="L139">            statement.executeUpdate(&quot;CREATE INDEX Record_search_idx5 ON Records (creatorID);&quot;);</span>
+
+<span class="fc" id="L141">            statement.close();</span>
+<span class="fc" id="L142">        } catch (Exception e) {</span>
+            // if the error message is &quot;out of memory&quot;,
+            // it probably means no database file is found
+<span class="fc" id="L145">            e.printStackTrace();</span>
+<span class="fc" id="L146">            SQLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="fc" id="L147">        }</span>
+
+<span class="fc" id="L149">        scheduler = Executors.newSingleThreadScheduledExecutor();</span>
+<span class="fc" id="L150">        scheduler.scheduleAtFixedRate(new WiiConnect24MailCollection(application), 0, 1, TimeUnit.HOURS);</span>
+<span class="fc" id="L151">    }</span>
+
+    @Override
+    public void contextDestroyed(ServletContextEvent arg0) {
+<span class="fc" id="L155">        scheduler.shutdownNow();</span>
+<span class="fc" id="L156">    }</span>
+
+    public class WiiConnect24MailCollection implements Runnable {
+
+        private ServletContext application;
+
+<span class="fc" id="L162">        public WiiConnect24MailCollection(ServletContext a) {</span>
+<span class="fc" id="L163">            application = a;</span>
+<span class="fc" id="L164">        }</span>
+
+        @Override
+        public void run() {
+            // Receive mails once per hour.
+            try {
+<span class="fc" id="L170">                Logger.getLogger(&quot;WiiConnect24&quot;).info(&quot;Collecting mails from WiiConnect24 now.&quot;);</span>
+<span class="fc" id="L171">                WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="fc" id="L172">                wc24.receiveMails();</span>
+<span class="fc" id="L173">                wc24.deleteMails();</span>
+<span class="fc" id="L174">            } catch (Exception e) {</span>
+<span class="fc" id="L175">                e.printStackTrace();</span>
+<span class="fc" id="L176">            }</span>
+<span class="fc" id="L177">        }</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

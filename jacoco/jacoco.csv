@@ -1,0 +1,90 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+DoujinSoft Store,com.difegue.doujinsoft.templates,Cart,0,116,0,8,0,29,0,10,0,6
+DoujinSoft Store,com.difegue.doujinsoft.templates,BaseMio,0,226,1,19,0,54,1,12,0,2
+DoujinSoft Store,com.difegue.doujinsoft.templates,Record,0,4,0,0,0,2,0,1,0,1
+DoujinSoft Store,com.difegue.doujinsoft.templates,Game,0,15,0,0,0,4,0,1,0,1
+DoujinSoft Store,com.difegue.doujinsoft.templates,Survey,0,136,0,41,0,56,0,38,0,2
+DoujinSoft Store,com.difegue.doujinsoft.templates,CreatorDetails,0,169,0,10,0,38,0,9,0,4
+DoujinSoft Store,com.difegue.doujinsoft.templates,Collection,0,115,0,16,0,24,0,13,0,4
+DoujinSoft Store,com.difegue.doujinsoft.templates,Manga,0,37,0,0,0,7,0,1,0,1
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame,4063,0,287,0,723,0,155,0,7,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MetadataFrame.new WindowAdapter() {...},9,0,0,0,3,0,2,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,BackgroundPreviewer,268,0,61,0,90,0,55,0,5,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MioFilter,122,0,34,0,21,0,21,0,4,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MyRend,35,0,0,0,11,0,2,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MusicPlayer.new WindowAdapter() {...},58,0,18,0,13,0,11,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.7.new Runnable() {...},47,0,2,0,6,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GamePreview,158,0,51,0,68,0,50,0,5,0
+DoujinSoft Store,com.xperia64.diyedit.gui,PlayThread,15,0,2,0,5,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new ActionListener() {...},15,0,0,0,3,0,2,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,GuiDFrame.new MouseAdapter() {...},39,0,2,0,7,0,3,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,FileChooser,117,0,14,0,40,0,9,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MidiFilter,77,0,16,0,18,0,12,0,4,0
+DoujinSoft Store,com.xperia64.diyedit.gui,Warning,20,0,0,0,8,0,1,0,1,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MetadataFrame,2323,0,59,0,398,0,45,0,9,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MangaPreviewer,68,0,8,0,21,0,6,0,2,0
+DoujinSoft Store,com.xperia64.diyedit.gui,MusicPlayer,480,0,86,0,107,0,47,0,4,0
+DoujinSoft Store,com.difegue.doujinsoft,AdminServlet,892,0,70,0,212,0,41,0,6,0
+DoujinSoft Store,com.difegue.doujinsoft,MangaServlet,16,0,0,0,6,0,3,0,3,0
+DoujinSoft Store,com.difegue.doujinsoft,ContentServletBase,96,17,10,0,23,4,7,1,2,1
+DoujinSoft Store,com.difegue.doujinsoft,CollectionServlet,149,0,12,0,38,0,10,0,4,0
+DoujinSoft Store,com.difegue.doujinsoft,CartServlet,591,0,34,0,130,0,24,0,7,0
+DoujinSoft Store,com.difegue.doujinsoft,UploadServlet,302,0,16,0,80,0,14,0,5,0
+DoujinSoft Store,com.difegue.doujinsoft,WC24FriendServlet,25,31,0,2,7,11,1,3,1,2
+DoujinSoft Store,com.difegue.doujinsoft,GameServlet,16,0,0,0,6,0,3,0,3,0
+DoujinSoft Store,com.difegue.doujinsoft,SurveyServlet,7,74,0,2,2,21,0,4,0,3
+DoujinSoft Store,com.difegue.doujinsoft,MusicServlet,0,16,0,0,0,6,0,3,0,3
+DoujinSoft Store,com.difegue.doujinsoft,FAQServlet,77,0,0,0,22,0,4,0,4,0
+DoujinSoft Store,com.difegue.doujinsoft,DownloadServlet,119,185,7,23,29,52,5,13,1,2
+DoujinSoft Store,com.difegue.doujinsoft,WelcomeServlet,246,0,6,0,56,0,8,0,5,0
+DoujinSoft Store,com.difegue.doujinsoft.utils,TemplateBuilder,0,822,10,91,0,150,10,50,0,8
+DoujinSoft Store,com.difegue.doujinsoft.utils,ServerInit.WiiConnect24MailCollection,0,29,0,0,0,11,0,2,0,2
+DoujinSoft Store,com.difegue.doujinsoft.utils,CollectionUtils,0,37,0,0,0,9,0,3,0,3
+DoujinSoft Store,com.difegue.doujinsoft.utils,ServerInit,3,301,0,4,2,77,0,6,0,4
+DoujinSoft Store,com.difegue.doujinsoft.utils,TemplateBuilderCollection,0,194,5,17,0,34,5,9,0,3
+DoujinSoft Store,com.difegue.doujinsoft.utils,TemplateBuilderSurvey,0,169,1,7,0,34,1,6,0,3
+DoujinSoft Store,com.difegue.doujinsoft.utils,MioUtils.Types,6,0,0,0,1,0,1,0,1,0
+DoujinSoft Store,com.difegue.doujinsoft.utils,MioStorage,576,66,35,3,147,13,26,4,5,3
+DoujinSoft Store,com.difegue.doujinsoft.utils,MioUtils,9,298,5,63,4,104,6,62,1,10
+DoujinSoft Store,com.difegue.doujinsoft.utils,MioCompress,0,159,0,8,0,43,0,7,0,3
+DoujinSoft Store,com.difegue.doujinsoft.wc24,RawMailItem,0,10,0,0,0,4,0,2,0,2
+DoujinSoft Store,com.difegue.doujinsoft.wc24,MailItem,101,225,8,12,28,51,8,14,1,8
+DoujinSoft Store,com.difegue.doujinsoft.wc24,WC24Base,0,60,0,8,0,15,0,5,0,1
+DoujinSoft Store,com.difegue.doujinsoft.wc24,LZSS,0,90,0,4,0,18,0,5,0,3
+DoujinSoft Store,com.difegue.doujinsoft.wc24,MailItemParser,174,454,9,37,39,99,10,23,2,7
+DoujinSoft Store,com.difegue.doujinsoft.wc24,WiiConnect24Api,340,0,16,0,87,0,14,0,6,0
+DoujinSoft Store,com.xperia64.diyedit,ExportGameMidi,13,0,0,0,8,0,6,0,6,0
+DoujinSoft Store,com.xperia64.diyedit,Main,46,0,4,0,7,0,4,0,2,0
+DoujinSoft Store,com.xperia64.diyedit,Globals,666,1404,8,0,104,41,7,2,3,2
+DoujinSoft Store,com.xperia64.diyedit,ExportMidi,13,0,0,0,8,0,6,0,6,0
+DoujinSoft Store,com.xperia64.diyedit,FileByteOperations,98,0,4,0,35,0,6,0,4,0
+DoujinSoft Store,com.xperia64.diyedit.editors,GameEdit,753,68,34,0,133,1,33,1,16,1
+DoujinSoft Store,com.xperia64.diyedit.editors,GameEdit.GameObject,351,0,30,0,62,0,24,0,9,0
+DoujinSoft Store,com.xperia64.diyedit.editors,RecordEdit,284,0,12,0,48,0,26,0,20,0
+DoujinSoft Store,com.xperia64.diyedit.editors,DIYEdit,3,0,0,0,1,0,1,0,1,0
+DoujinSoft Store,com.xperia64.diyedit.editors,GameEdit.GameArt,344,0,26,0,63,0,24,0,11,0
+DoujinSoft Store,com.xperia64.diyedit.editors,GameEdit.GameMusic,160,0,10,0,31,0,20,0,15,0
+DoujinSoft Store,com.xperia64.diyedit.editors,MangaEdit,208,0,14,0,44,0,13,0,6,0
+DoujinSoft Store,com.xperia64.diyedit.editors,GameEdit.GameIndex,260,0,36,0,53,0,25,0,7,0
+DoujinSoft Store,com.xperia64.diyedit.metadata,RecordMetadata,63,0,0,0,19,0,12,0,12,0
+DoujinSoft Store,com.xperia64.diyedit.metadata,Metadata,792,675,50,60,65,118,36,42,5,18
+DoujinSoft Store,com.xperia64.diyedit.metadata,GameMetadata,455,0,30,0,67,0,29,0,14,0
+DoujinSoft Store,com.xperia64.diyedit.metadata,Checksums,246,0,26,0,34,0,16,0,3,0
+DoujinSoft Store,com.xperia64.diyedit.metadata,MangaMetadata,41,0,0,0,13,0,8,0,8,0
+DoujinSoft Store,com.xperia64.diyedit.resources,Resources,1072,0,220,0,114,0,114,0,4,0
+DoujinSoft Store,com.xperia64.diyedit.resources,Resources_zh_SG,3,0,0,0,1,0,1,0,1,0
+DoujinSoft Store,com.xperia64.diyedit.resources,Resources_zh_CN,1068,0,220,0,113,0,113,0,3,0
+DoujinSoft Store,com.xperia64.diyedit.resources,Resources_en_US,3,0,0,0,1,0,1,0,1,0
+DoujinSoft Store,com.xperia64.diyedit.saveutils,WiiSave,586,0,34,0,106,0,28,0,7,0
+DoujinSoft Store,com.xperia64.diyedit.saveutils,SaveHandler,897,0,98,0,139,0,67,0,14,0
+DoujinSoft Store,com.xperia64.diyedit.saveutils,DSSave,677,0,86,0,166,0,58,0,12,0
+DoujinSoft Store,com.xperia64.diyedit.savecrypt,Tools,1011,0,16,0,95,0,21,0,13,0
+DoujinSoft Store,com.xperia64.diyedit.savecrypt,Tachtig,916,0,69,0,157,0,43,0,8,0
+DoujinSoft Store,com.xperia64.diyedit.savecrypt,BN,367,0,36,0,57,0,28,0,10,0
+DoujinSoft Store,com.xperia64.diyedit.savecrypt,Twintig,1416,0,110,0,290,0,67,0,12,0
+DoujinSoft Store,com.xperia64.diyedit.savecrypt,EC,2036,0,102,0,228,0,72,0,21,0

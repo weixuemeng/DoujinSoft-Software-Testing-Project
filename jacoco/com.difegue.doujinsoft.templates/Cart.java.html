@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Cart.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.templates</a> &gt; <span class="el_source">Cart.java</span></div><h1>Cart.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.templates;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.Part;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+
+public class Cart {
+
+<span class="fc" id="L19">    private JsonArray games = new JsonArray();</span>
+<span class="fc" id="L20">    private JsonArray manga = new JsonArray();</span>
+<span class="fc" id="L21">    private JsonArray records = new JsonArray();</span>
+
+<span class="fc" id="L23">    private File saveFile = null;</span>
+    private String recipientFriendCode;
+
+<span class="fc" id="L26">    public Cart(HttpServletRequest request) throws IOException, ServletException {</span>
+
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (request.getPart(&quot;save&quot;) != null) {</span>
+
+            // Get byte[] save from request parameters
+<span class="fc" id="L31">            Part filePart = request.getPart(&quot;save&quot;);</span>
+<span class="fc" id="L32">            String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString(); // MSIE fix.</span>
+<span class="fc" id="L33">            InputStream fileContent = filePart.getInputStream();</span>
+
+            // Drop the file in a temp file
+<span class="fc" id="L36">            saveFile = File.createTempFile(fileName + System.currentTimeMillis(), &quot;bin&quot;);</span>
+
+<span class="fc" id="L38">            Files.copy(</span>
+                    fileContent,
+<span class="fc" id="L40">                    saveFile.toPath(),</span>
+                    StandardCopyOption.REPLACE_EXISTING);
+<span class="fc" id="L42">        } else {</span>
+<span class="fc" id="L43">            recipientFriendCode = request.getParameter(&quot;recipient&quot;);</span>
+        }
+
+        // Get the cart data and deserialize it.
+<span class="fc" id="L47">        JsonElement a = JsonParser.parseString(request.getParameter(&quot;games&quot;));</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (a.isJsonArray())</span>
+<span class="fc" id="L49">            games = a.getAsJsonArray();</span>
+
+<span class="fc" id="L51">        a = JsonParser.parseString(request.getParameter(&quot;manga&quot;));</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (a.isJsonArray())</span>
+<span class="fc" id="L53">            manga = a.getAsJsonArray();</span>
+
+<span class="fc" id="L55">        a = JsonParser.parseString(request.getParameter(&quot;records&quot;));</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (a.isJsonArray())</span>
+<span class="fc" id="L57">            records = a.getAsJsonArray();</span>
+<span class="fc" id="L58">    }</span>
+
+    public JsonArray getGames() {
+<span class="fc" id="L61">        return games;</span>
+    }
+
+    public JsonArray getManga() {
+<span class="fc" id="L65">        return manga;</span>
+    }
+
+    public JsonArray getRecords() {
+<span class="fc" id="L69">        return records;</span>
+    }
+
+    public File getSaveFile() {
+<span class="fc" id="L73">        return saveFile;</span>
+    }
+
+    public String getRecipientCode() {
+<span class="fc" id="L77">        return recipientFriendCode;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

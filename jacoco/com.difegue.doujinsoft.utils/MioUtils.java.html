@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MioUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">MioUtils.java</span></div><h1>MioUtils.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Base64;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+
+import javax.imageio.ImageIO;
+
+import com.xperia64.diyedit.editors.GameEdit;
+import com.xperia64.diyedit.editors.MangaEdit;
+import com.xperia64.diyedit.metadata.Metadata;
+
+/*
+ * Static class containing base methods for interacting with .mio files.
+ * Basically an abstraction layer for DIYEdit.
+ * 
+ */
+
+<span class="nc" id="L26">public class MioUtils {</span>
+
+  // Constants for timestamp printing
+<span class="fc" id="L29">  static final ZonedDateTime DIY_TIMESTAMP_ORIGIN = ZonedDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneId.systemDefault());</span>
+<span class="fc" id="L30">  private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(&quot;dd/MM/yyyy&quot;);</span>
+
+  // Basic enum to distinguish mio files quickly.
+  // Game = 64KB, Manga = 14KB, Record = 8KB.
+  // Surveys are added here as a quick-and-dirty shortcut.
+<span class="nc" id="L35">  public class Types {</span>
+    public static final int GAME = 65536;
+    public static final int MANGA = 14336;
+    public static final int RECORD = 8192;
+    public static final int SURVEY = 255;
+  }
+
+  /*
+   * Returns a readable date from DIY's weird timestamp ints.
+   */
+  public static String getTimeString(int timestamp) {
+<span class="fc" id="L46">    ZonedDateTime dateMio = DIY_TIMESTAMP_ORIGIN.plusDays(timestamp);</span>
+<span class="fc" id="L47">    return dateMio.format(formatter);</span>
+  }
+
+  /*
+   * Craft ID from .mio metadata.
+   */
+  public static String computeMioID(Metadata mio) {
+<span class="fc" id="L54">    return mio.getSerial1() + &quot;-&quot; + mio.getSerial2() + &quot;-&quot; + mio.getSerial3();</span>
+  }
+
+  /*
+   * Returns color strings matching the bytes used in .mio files.
+   * The strings match the colors used by MaterializeCSS.
+   */
+  public static String mapColorByte(byte color) {
+    // 0 Yellow
+    // 1 Light Blue
+    // 2 Green
+    // 3 Orange
+    // 4 Dark Blue
+    // 5 Red
+    // 6 White
+    // 7 Black
+<span class="fc bfc" id="L70" title="All 9 branches covered.">    switch (color) {</span>
+      case 0:
+<span class="fc" id="L72">        return &quot;yellow&quot;;</span>
+      case 1:
+<span class="fc" id="L74">        return &quot;light-blue&quot;;</span>
+      case 2:
+<span class="fc" id="L76">        return &quot;green&quot;;</span>
+      case 3:
+<span class="fc" id="L78">        return &quot;orange&quot;;</span>
+      case 4:
+<span class="fc" id="L80">        return &quot;indigo&quot;;</span>
+      case 5:
+<span class="fc" id="L82">        return &quot;red&quot;;</span>
+      case 6:
+<span class="fc" id="L84">        return &quot;grey lighten-3&quot;;</span>
+      case 7:
+<span class="fc" id="L86">        return &quot;grey darken-4&quot;;</span>
+      default:
+<span class="fc" id="L88">        return &quot;purple&quot;;</span>
+    }
+  }
+
+  /*
+   * Parse a manga .mio and return the specified page. (From 0 to 3)
+   */
+  public static String getBase64Manga(byte[] mioFile, int page) {
+<span class="fc" id="L96">    int x = 0;</span>
+<span class="fc" id="L97">    int y = 0;</span>
+<span class="fc" id="L98">    boolean done = false;</span>
+<span class="fc" id="L99">    MangaEdit e2 = new MangaEdit(mioFile);</span>
+
+    // .mio comic panels are 191x127px.
+<span class="fc" id="L102">    BufferedImage image = new BufferedImage(191, 127, BufferedImage.TYPE_INT_RGB);</span>
+<span class="fc" id="L103">    Graphics2D g = image.createGraphics();</span>
+
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">    while (!done) {</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">      if (e2.getPixel((byte) page, x, y)) {</span>
+<span class="fc" id="L107">        g.setColor(new Color(0, 0, 0));</span>
+      } else {
+<span class="fc" id="L109">        g.setColor(new Color(255, 255, 255));</span>
+      }
+<span class="fc" id="L111">      g.drawRect(x, y, 1, 1);</span>
+
+<span class="fc" id="L113">      x++;</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">      if (x &gt; 191) {</span>
+<span class="fc" id="L115">        y++;</span>
+<span class="fc" id="L116">        x = 0;</span>
+      }
+<span class="fc bfc" id="L118" title="All 2 branches covered.">      if (y &gt; 127) {</span>
+<span class="fc" id="L119">        done = true;</span>
+<span class="fc" id="L120">        break;</span>
+      }
+    }
+
+<span class="fc" id="L124">    return &quot;data:image/png;base64,&quot; + imgToBase64String(image, &quot;png&quot;);</span>
+  }
+
+  /*
+   * Parse a game .mio and return its embedded image preview in base64 format for
+   * display in web browsers.
+   */
+  public static String getBase64GamePreview(byte[] mioFile) {
+
+<span class="fc" id="L133">    int x = 0;</span>
+<span class="fc" id="L134">    int y = 0;</span>
+<span class="fc" id="L135">    boolean done = false;</span>
+<span class="fc" id="L136">    GameEdit gameMeta = new GameEdit(mioFile);</span>
+
+    // .mio preview pictures are 95x63px.
+<span class="fc" id="L139">    BufferedImage image = new BufferedImage(95, 63, BufferedImage.TYPE_INT_RGB);</span>
+
+<span class="fc" id="L141">    Graphics2D g = image.createGraphics();</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">    while (!done) {</span>
+<span class="fc" id="L143">      int c = gameMeta.getPreviewPixel(x, y);</span>
+<span class="fc" id="L144">      Color cp = new Color(r(c), g(c), b(c));</span>
+<span class="fc" id="L145">      g.setColor(cp);</span>
+<span class="fc" id="L146">      g.drawRect(x, y, 1, 1);</span>
+
+<span class="fc" id="L148">      x++;</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">      if (x &gt; 95) {</span>
+<span class="fc" id="L150">        y++;</span>
+<span class="fc" id="L151">        x = 0;</span>
+      }
+<span class="fc bfc" id="L153" title="All 2 branches covered.">      if (y &gt; 63) {</span>
+<span class="fc" id="L154">        done = true;</span>
+<span class="fc" id="L155">        break;</span>
+      }
+<span class="fc" id="L157">    }</span>
+
+<span class="fc" id="L159">    return &quot;data:image/png;base64,&quot; + imgToBase64String(image, &quot;png&quot;);</span>
+  }
+
+  public static String imgToBase64String(final RenderedImage img, final String formatName) {
+<span class="fc" id="L163">    final ByteArrayOutputStream os = new ByteArrayOutputStream();</span>
+
+    try {
+<span class="fc" id="L166">      ImageIO.write(img, formatName, os);</span>
+<span class="fc" id="L167">      return Base64.getEncoder().encodeToString(os.toByteArray());</span>
+<span class="fc" id="L168">    } catch (final IOException ioe) {</span>
+<span class="fc" id="L169">      throw new UncheckedIOException(ioe);</span>
+    }
+  }
+
+  private static int r(int b) {
+<span class="pc bpc" id="L174" title="1 of 15 branches missed.">    switch (b) {</span>
+      case 1:
+<span class="fc" id="L176">        return 0;</span>
+      case 2:
+<span class="fc" id="L178">        return 255;</span>
+      case 3:
+<span class="fc" id="L180">        return 255;</span>
+      case 4:
+<span class="fc" id="L182">        return 198;</span>
+      case 5:
+<span class="fc" id="L184">        return 255;</span>
+      case 6:
+<span class="fc" id="L186">        return 206;</span>
+      case 7:
+<span class="fc" id="L188">        return 16;</span>
+      case 8:
+<span class="fc" id="L190">        return 41;</span>
+      case 9:
+<span class="fc" id="L192">        return 8;</span>
+      case 10:
+<span class="fc" id="L194">        return 115;</span>
+      case 11:
+<span class="fc" id="L196">        return 255;</span>
+      case 12:
+<span class="fc" id="L198">        return 128;</span>
+      case 13:
+<span class="fc" id="L200">        return 192;</span>
+      case 14:
+<span class="fc" id="L202">        return 255;</span>
+    }
+<span class="nc" id="L204">    return 0;</span>
+  }
+
+  private static int g(int b) {
+<span class="pc bpc" id="L208" title="1 of 15 branches missed.">    switch (b) {</span>
+      case 1:
+<span class="fc" id="L210">        return 0;</span>
+      case 2:
+<span class="fc" id="L212">        return 223;</span>
+      case 3:
+<span class="fc" id="L214">        return 174;</span>
+      case 4:
+<span class="fc" id="L216">        return 73;</span>
+      case 5:
+<span class="fc" id="L218">        return 0;</span>
+      case 6:
+<span class="fc" id="L220">        return 105;</span>
+      case 7:
+<span class="fc" id="L222">        return 199;</span>
+      case 8:
+<span class="fc" id="L224">        return 105;</span>
+      case 9:
+<span class="fc" id="L226">        return 150;</span>
+      case 10:
+<span class="fc" id="L228">        return 215;</span>
+      case 11:
+<span class="fc" id="L230">        return 255;</span>
+      case 12:
+<span class="fc" id="L232">        return 128;</span>
+      case 13:
+<span class="fc" id="L234">        return 192;</span>
+      case 14:
+<span class="fc" id="L236">        return 255;</span>
+    }
+<span class="nc" id="L238">    return 0;</span>
+  }
+
+  private static int b(int b) {
+<span class="pc bpc" id="L242" title="1 of 15 branches missed.">    switch (b) {</span>
+      case 1:
+<span class="fc" id="L244">        return 0;</span>
+      case 2:
+<span class="fc" id="L246">        return 156;</span>
+      case 3:
+<span class="fc" id="L248">        return 49;</span>
+      case 4:
+<span class="fc" id="L250">        return 0;</span>
+      case 5:
+<span class="fc" id="L252">        return 0;</span>
+      case 6:
+<span class="fc" id="L254">        return 239;</span>
+      case 7:
+<span class="fc" id="L256">        return 206;</span>
+      case 8:
+<span class="fc" id="L258">        return 198;</span>
+      case 9:
+<span class="fc" id="L260">        return 82;</span>
+      case 10:
+<span class="fc" id="L262">        return 57;</span>
+      case 11:
+<span class="fc" id="L264">        return 90;</span>
+      case 12:
+<span class="fc" id="L266">        return 128;</span>
+      case 13:
+<span class="fc" id="L268">        return 192;</span>
+      case 14:
+<span class="fc" id="L270">        return 255;</span>
+    }
+<span class="nc" id="L272">    return 0;</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

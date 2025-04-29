@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TemplateBuilderCollection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">TemplateBuilderCollection.java</span></div><h1>TemplateBuilderCollection.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+import java.sql.Statement;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import com.google.gson.Gson;
+
+import com.difegue.doujinsoft.templates.*;
+
+// TemplateBuilder extension for Collections.
+public class TemplateBuilderCollection extends TemplateBuilder {
+
+    public TemplateBuilderCollection(ServletContext application, HttpServletRequest request) throws SQLException {
+<span class="fc" id="L18">        super(application, request);</span>
+<span class="fc" id="L19">    }</span>
+
+	public String doStandardPageCollection(Collection c) throws Exception {
+<span class="fc" id="L22">		initializeTemplate(c.getType(), false);</span>
+<span class="fc" id="L23">		Statement statement = connection.createStatement();</span>
+<span class="fc" id="L24">	    compiledTemplate = engine.getTemplate(application.getRealPath(&quot;/WEB-INF/templates/collection.html&quot;));</span>
+<span class="fc bfc" id="L25" title="All 2 branches covered.">	    if (c.getMioSQL().equals(&quot;)&quot;)) {</span>
+<span class="fc" id="L26">			context.put(&quot;totalitems&quot;, 0);</span>
+<span class="fc" id="L27">			context.put(&quot;collection&quot;, c);</span>
+<span class="fc" id="L28">			return writeToTemplate();</span>
+		}
+		// ordering by timestamp is the default for collections
+<span class="fc" id="L31">  		ResultSet result = statement.executeQuery(&quot;select * from &quot;+tableName+&quot; WHERE hash IN &quot;+c.getMioSQL()+&quot; ORDER BY timeStamp DESC LIMIT 15&quot;);</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">  		while(result.next()) </span>
+<span class="fc" id="L33">		  	items.add(classConstructor.newInstance(result));</span>
+<span class="fc" id="L34">  		context.put(&quot;items&quot;, items);</span>
+<span class="fc" id="L35">		context.put(&quot;totalitems&quot;, c.mios.length);</span>
+<span class="fc" id="L36">		context.put(&quot;collection&quot;, c);</span>
+<span class="fc" id="L37">		result.close();</span>
+<span class="fc" id="L38">		statement.close();</span>
+<span class="fc" id="L39">		connection.close();</span>
+		// if specified in the parameters
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">		if (request.getParameterMap().containsKey(&quot;format&quot;) &amp;&amp; request.getParameter(&quot;format&quot;).equals(&quot;json&quot;)) {</span>
+<span class="fc" id="L42">			Gson gson = new Gson();</span>
+<span class="fc" id="L43">			return gson.toJson(context);</span>
+		}
+<span class="fc" id="L45">		return writeToTemplate();</span>
+    }
+
+	 // POST requests in collections.
+	public String doSearchCollection(Collection c) throws Exception {
+<span class="fc" id="L50">		initializeTemplate(c.getType(), true);</span>
+<span class="fc" id="L51">		String queryBase = &quot;FROM &quot;+tableName+&quot; WHERE hash IN &quot;+c.getMioSQL();</span>
+<span class="pc bpc" id="L52" title="1 of 4 branches missed.">	    queryBase += (isContentNameSearch || isCreatorNameSearch) ? &quot; AND name LIKE ? AND creator LIKE ?&quot; : &quot;&quot;;</span>
+<span class="pc bpc" id="L53" title="2 of 6 branches missed.">		if (isContentCreatorSearch &amp;&amp; !isContentNameSearch &amp;&amp; !isCreatorNameSearch) {</span>
+<span class="fc" id="L54">			performCreatorSearchQuery(queryBase, &quot;timeStamp DESC&quot;);</span>
+<span class="fc" id="L55">			GetCreatorInfo();</span>
+		}
+		else {
+<span class="fc" id="L58">			performSearchQuery(queryBase, &quot;timeStamp DESC&quot;);</span>
+		}
+<span class="pc bpc" id="L60" title="1 of 4 branches missed.">		if (request.getParameterMap().containsKey(&quot;format&quot;) &amp;&amp; request.getParameter(&quot;format&quot;).equals(&quot;json&quot;)) {</span>
+<span class="fc" id="L61">			Gson gson = new Gson();</span>
+<span class="fc" id="L62">			return gson.toJson(context);</span>
+		}
+<span class="fc" id="L64">		connection.close();</span>
+<span class="fc" id="L65">		return writeToTemplate();</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

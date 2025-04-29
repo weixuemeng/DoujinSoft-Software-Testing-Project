@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WiiConnect24Api.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.wc24</a> &gt; <span class="el_source">WiiConnect24Api.java</span></div><h1>WiiConnect24Api.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.wc24;
+
+import com.mitchellbosecke.pebble.error.PebbleException;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.HttpClients;
+
+import javax.servlet.ServletContext;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class WiiConnect24Api extends WC24Base {
+
+    public WiiConnect24Api(ServletContext application) throws Exception {
+<span class="nc" id="L27">        super(application);</span>
+<span class="nc" id="L28">    }</span>
+
+    /**
+     * Craft a request with all the mails we have to send, and fire it over to the
+     * WC24 server.
+     *
+     * @param mails
+     * @return
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public String sendMails(List&lt;MailItem&gt; mails) throws IOException, InterruptedException {
+
+<span class="nc" id="L41">        String output = &quot;&quot;;</span>
+
+        // If the mail list is too long it'll likely overload the WC24 endpoint
+        // Split the list into 15s (max amount) and perform an equal number of requests
+<span class="nc" id="L45">        final AtomicInteger counter = new AtomicInteger();</span>
+<span class="nc" id="L46">        final java.util.Collection&lt;List&lt;MailItem&gt;&gt; chunkedMails = mails.stream()</span>
+<span class="nc" id="L47">                .collect(Collectors.groupingBy(it -&gt; counter.getAndIncrement() / 15))</span>
+<span class="nc" id="L48">                .values();</span>
+
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        for (List&lt;MailItem&gt; chunk : chunkedMails) {</span>
+<span class="nc" id="L51">            output += sendMailsInternal(chunk);</span>
+            // Sleep between chunks to avoid murdering the RC24 server :|
+<span class="nc" id="L53">            Thread.sleep(1000);</span>
+<span class="nc" id="L54">            output += &quot;----------------\n&quot;;</span>
+<span class="nc" id="L55">        }</span>
+
+<span class="nc" id="L57">        return output;</span>
+    }
+
+    private String sendMailsInternal(List&lt;MailItem&gt; mails) throws IOException {
+<span class="nc" id="L61">        Logger log = Logger.getLogger(&quot;WC24&quot;);</span>
+
+<span class="nc" id="L63">        HttpClient httpclient = HttpClients.createDefault();</span>
+<span class="nc" id="L64">        HttpPost request = new HttpPost(&quot;http://mtw.&quot; + wc24Server + &quot;/cgi-bin/send.cgi&quot;);</span>
+
+        // Request parameters and other properties.
+<span class="nc" id="L67">        MultipartEntityBuilder builder = MultipartEntityBuilder.create();</span>
+<span class="nc" id="L68">        String templatePath = application.getRealPath(&quot;/WEB-INF/wiiconnect24&quot;);</span>
+
+        // Add the authentication string as mlid
+        // See spec on https://wiibrew.org/wiki/WiiConnect24/Mail
+<span class="nc" id="L72">        String authString = &quot;mlid=w&quot; + sender + &quot;\r\n&quot; + &quot;passwd=&quot; + wc24Pass;</span>
+<span class="nc" id="L73">        builder.addTextBody(&quot;mlid&quot;, authString);</span>
+
+<span class="nc" id="L75">        int count = 1;</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        for (MailItem mail : mails) {</span>
+            // m1, m2, etc
+            try {
+<span class="nc" id="L79">                String renderedMail = mail.renderString(templatePath);</span>
+<span class="nc" id="L80">                log.log(Level.FINE, renderedMail);</span>
+<span class="nc" id="L81">                builder.addTextBody(&quot;m&quot; + count, renderedMail);</span>
+<span class="nc" id="L82">                count++;</span>
+<span class="nc" id="L83">            } catch (PebbleException e) {</span>
+<span class="nc" id="L84">                log.log(Level.SEVERE, &quot;Couldn't add mailitem to the sendbox: &quot; + e.getPebbleMessage());</span>
+<span class="nc" id="L85">            }</span>
+
+<span class="nc" id="L87">        }</span>
+
+<span class="nc" id="L89">        HttpEntity formDataEntity = builder.build();</span>
+<span class="nc" id="L90">        request.setEntity(formDataEntity);</span>
+
+        // Log full multipart request, if thou must
+        // It makes the logs gigantic
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (debugLogging) {</span>
+
+            try {
+<span class="nc" id="L97">                ByteArrayOutputStream baos = new ByteArrayOutputStream();</span>
+<span class="nc" id="L98">                builder.build().writeTo(baos);</span>
+
+<span class="nc" id="L100">                log.log(Level.INFO, &quot;Executing request:&quot; + System.lineSeparator()</span>
+<span class="nc" id="L101">                        + request.getRequestLine() + System.lineSeparator()</span>
+<span class="nc" id="L102">                        + baos.toString());</span>
+<span class="nc" id="L103">            } catch (Exception e) {</span>
+<span class="nc" id="L104">                log.log(Level.INFO, e.getMessage());</span>
+<span class="nc" id="L105">            }</span>
+        }
+
+        // Execute and get the response.
+<span class="nc" id="L109">        HttpResponse response = httpclient.execute(request);</span>
+<span class="nc" id="L110">        HttpEntity entity = response.getEntity();</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (entity != null) {</span>
+<span class="nc" id="L113">            try (InputStream inStream = entity.getContent()) {</span>
+
+                // Just return the server response as-is for the time being.
+<span class="nc" id="L116">                String wc24rep = new String(inStream.readAllBytes(), StandardCharsets.UTF_8);</span>
+<span class="nc" id="L117">                log.log(Level.INFO, &quot;Reply from WC24 server: &quot; + wc24rep);</span>
+<span class="nc" id="L118">                return wc24rep;</span>
+            }
+        }
+<span class="nc" id="L121">        return null;</span>
+    }
+
+    /***
+     * Phones up the WC24 server to grab mails, and consume them. See
+     * MailItemParser.
+     * 
+     * @throws Exception
+     */
+    public String receiveMails() throws Exception {
+
+<span class="nc" id="L132">        HttpClient httpclient = HttpClients.createDefault();</span>
+<span class="nc" id="L133">        HttpPost request = new HttpPost(&quot;http://mtw.&quot; + wc24Server + &quot;/cgi-bin/receive.cgi&quot;);</span>
+
+        // For receiving, the syntax is different and the creds are form parameters.
+<span class="nc" id="L136">        MultipartEntityBuilder builder = MultipartEntityBuilder.create();</span>
+<span class="nc" id="L137">        builder.addTextBody(&quot;mlid&quot;, &quot;w&quot; + sender);</span>
+<span class="nc" id="L138">        builder.addTextBody(&quot;passwd&quot;, wc24Pass);</span>
+<span class="nc" id="L139">        builder.addTextBody(&quot;maxsize&quot;, &quot;2000000&quot;);</span>
+
+<span class="nc" id="L141">        HttpEntity formDataEntity = builder.build();</span>
+<span class="nc" id="L142">        request.setEntity(formDataEntity);</span>
+
+        // Execute and get the response.
+<span class="nc" id="L145">        HttpResponse response = httpclient.execute(request);</span>
+<span class="nc" id="L146">        HttpEntity entity = response.getEntity();</span>
+
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (entity != null)</span>
+<span class="nc" id="L149">            try (InputStream inStream = entity.getContent()) {</span>
+
+<span class="nc" id="L151">                String responseText = new BufferedReader(new InputStreamReader(inStream)).lines()</span>
+<span class="nc" id="L152">                        .collect(Collectors.joining(&quot;\n&quot;));</span>
+
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (debugLogging) {</span>
+<span class="nc" id="L155">                    Logger log = Logger.getLogger(&quot;WC24 Debug&quot;);</span>
+<span class="nc" id="L156">                    log.log(Level.INFO, &quot;Reponse from WC24: \n&quot; + responseText);</span>
+                }
+
+<span class="nc" id="L159">                new MailItemParser(application).consumeEmails(responseText);</span>
+<span class="nc" id="L160">                return &quot;&lt;pre&gt;&quot; + responseText + &quot;&lt;/pre&gt;&quot;;</span>
+            }
+
+<span class="nc" id="L163">        return &quot;No mails received.&quot;;</span>
+    }
+
+    /**
+     * Deletes all received mails from the WiiConnect24 server.
+     * 
+     * @throws Exception
+     */
+    public void deleteMails() throws Exception {
+
+<span class="nc" id="L173">        HttpClient httpclient = HttpClients.createDefault();</span>
+<span class="nc" id="L174">        HttpPost request = new HttpPost(&quot;http://mtw.&quot; + wc24Server + &quot;/cgi-bin/delete.cgi&quot;);</span>
+
+        // For receiving, the syntax is different and the creds are form parameters.
+<span class="nc" id="L177">        MultipartEntityBuilder builder = MultipartEntityBuilder.create();</span>
+<span class="nc" id="L178">        builder.addTextBody(&quot;mlid&quot;, &quot;w&quot; + sender);</span>
+<span class="nc" id="L179">        builder.addTextBody(&quot;passwd&quot;, wc24Pass);</span>
+<span class="nc" id="L180">        builder.addTextBody(&quot;delnum&quot;, &quot;10&quot;); // WiiLink's server doesn't care about this number but needs it</span>
+
+<span class="nc" id="L182">        HttpEntity formDataEntity = builder.build();</span>
+<span class="nc" id="L183">        request.setEntity(formDataEntity);</span>
+
+        // Execute and get the response.
+<span class="nc" id="L186">        HttpResponse response = httpclient.execute(request);</span>
+<span class="nc" id="L187">        HttpEntity entity = response.getEntity();</span>
+
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (entity != null)</span>
+<span class="nc" id="L190">            try (InputStream inStream = entity.getContent()) {</span>
+
+<span class="nc" id="L192">                String responseText = new BufferedReader(new InputStreamReader(inStream)).lines()</span>
+<span class="nc" id="L193">                        .collect(Collectors.joining(&quot;\n&quot;));</span>
+
+<span class="nc bnc" id="L195" title="All 2 branches missed.">                if (debugLogging) {</span>
+<span class="nc" id="L196">                    Logger log = Logger.getLogger(&quot;WC24 Debug&quot;);</span>
+<span class="nc" id="L197">                    log.log(Level.INFO, &quot;Reponse from WC24 deletion request: \n&quot; + responseText);</span>
+                }
+            }
+<span class="nc" id="L200">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

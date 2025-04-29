@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TemplateBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">TemplateBuilder.java</span></div><h1>TemplateBuilder.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.lang.reflect.Constructor;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import com.google.gson.Gson;
+
+import com.difegue.doujinsoft.templates.*;
+import com.difegue.doujinsoft.templates.Record;
+import com.difegue.doujinsoft.utils.MioUtils.Types;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.error.PebbleException;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
+
+/*
+ * This class contains generic get/search methods used across all three major servlets
+ * (Games, Comics and Records)
+ */
+public class TemplateBuilder {
+
+<span class="fc" id="L33">	protected ArrayList&lt;Object&gt; items = new ArrayList&lt;Object&gt;();</span>
+	protected Constructor classConstructor;
+
+<span class="fc" id="L36">	protected Map&lt;String, Object&gt; context = new HashMap&lt;&gt;();</span>
+	protected Connection connection;
+	protected ServletContext application;
+	protected HttpServletRequest request;
+
+	protected String tableName, dataDir;
+
+	/*
+	 *  isContentNameSearch: Search by title name of the game, comic, or record
+	 *  isCreatorNameSearch: Search by author's name of the game, comic, or record
+	 *  isContentCreatorSearch: Search by cartridge ID or creator ID of the game, comic, or record
+	 *  isSortedBy: Sort content flag
+	 */
+	protected boolean isContentNameSearch, isCreatorNameSearch, isContentCreatorSearch, isSortedBy;
+
+<span class="fc" id="L51">	protected PebbleEngine engine = new PebbleEngine.Builder().build();</span>
+	protected PebbleTemplate compiledTemplate;
+
+<span class="fc" id="L54">	public TemplateBuilder(ServletContext application, HttpServletRequest request) throws SQLException {</span>
+
+<span class="fc" id="L56">		this.application = application;</span>
+<span class="fc" id="L57">		this.request = request;</span>
+<span class="fc" id="L58">		dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+		// create a database connection
+<span class="fc" id="L61">		connection = DriverManager.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;);</span>
+<span class="fc" id="L62">	}</span>
+
+	protected void initializeTemplate(int type, boolean isDetail) throws NoSuchMethodException, PebbleException {
+
+<span class="fc" id="L66">		String templatePath = &quot;/WEB-INF/templates/&quot;;</span>
+		// Getting base template and other type dependant data
+		// If in search mode, we only use the part of the template containing the item
+		// cards
+<span class="pc bpc" id="L70" title="1 of 5 branches missed.">		switch (type) {</span>
+			case Types.GAME:
+<span class="fc" id="L72">				templatePath += &quot;game&quot;;</span>
+<span class="fc" id="L73">				tableName = &quot;Games&quot;;</span>
+<span class="fc" id="L74">				classConstructor = Game.class.getConstructor(ResultSet.class);</span>
+<span class="fc" id="L75">				break;</span>
+			case Types.MANGA:
+<span class="fc" id="L77">				templatePath += &quot;manga&quot;;</span>
+<span class="fc" id="L78">				tableName = &quot;Manga&quot;;</span>
+<span class="fc" id="L79">				classConstructor = Manga.class.getConstructor(ResultSet.class);</span>
+<span class="fc" id="L80">				break;</span>
+			case Types.RECORD:
+<span class="fc" id="L82">				templatePath += &quot;records&quot;;</span>
+<span class="fc" id="L83">				tableName = &quot;Records&quot;;</span>
+<span class="fc" id="L84">				classConstructor = Record.class.getConstructor(ResultSet.class);</span>
+<span class="fc" id="L85">				break;</span>
+			case Types.SURVEY:
+<span class="fc" id="L87">				templatePath += &quot;surveys&quot;;</span>
+<span class="fc" id="L88">				tableName = &quot;Surveys&quot;;</span>
+<span class="fc" id="L89">				classConstructor = Survey.class.getConstructor(ResultSet.class);</span>
+		}
+
+<span class="fc bfc" id="L92" title="All 2 branches covered.">		if (isDetail) {</span>
+<span class="fc" id="L93">			templatePath += &quot;Detail&quot;;</span>
+		}
+
+<span class="pc bpc" id="L96" title="1 of 4 branches missed.">		isContentNameSearch = request.getParameterMap().containsKey(&quot;name&quot;) &amp;&amp; !request.getParameter(&quot;name&quot;).isEmpty();</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">		isCreatorNameSearch = request.getParameterMap().containsKey(&quot;creator&quot;)</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">				&amp;&amp; !request.getParameter(&quot;creator&quot;).isEmpty();</span>
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">		isContentCreatorSearch = (request.getParameterMap().containsKey(&quot;cartridge_id&quot;) &amp;&amp; !request.getParameter(&quot;cartridge_id&quot;).isEmpty())</span>
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">		|| (request.getParameterMap().containsKey(&quot;creator_id&quot;) &amp;&amp; !request.getParameter(&quot;creator_id&quot;).isEmpty());</span>
+<span class="fc bfc" id="L101" title="All 4 branches covered.">		isSortedBy = request.getParameterMap().containsKey(&quot;sort_by&quot;) &amp;&amp; !request.getParameter(&quot;sort_by&quot;).isEmpty();</span>
+
+<span class="fc" id="L103">		compiledTemplate = engine.getTemplate(application.getRealPath(templatePath + &quot;.html&quot;));</span>
+<span class="fc" id="L104">	}</span>
+
+	protected String writeToTemplate() throws PebbleException, IOException {
+
+<span class="fc" id="L108">		Writer writer = new StringWriter();</span>
+<span class="fc" id="L109">		compiledTemplate.evaluate(writer, context);</span>
+<span class="fc" id="L110">		String output = writer.toString();</span>
+
+<span class="fc" id="L112">		return output;</span>
+	}
+
+	/*
+	 * For GET requests. Grab the standard template, and add the first page of
+	 * items.
+	 */
+	public String doStandardPageGeneric(int type) throws Exception {
+
+<span class="fc" id="L121">		initializeTemplate(type, false);</span>
+<span class="fc" id="L122">		String queryBase = &quot;FROM &quot; + tableName + &quot; WHERE &quot;;</span>
+<span class="fc bfc" id="L123" title="All 4 branches covered.">		queryBase += (isContentNameSearch || isCreatorNameSearch) ? &quot;name LIKE ? AND creator LIKE ? AND &quot; : &quot;&quot;;</span>
+<span class="fc" id="L124">		queryBase += &quot;id NOT LIKE '%them%'&quot;;</span>
+
+		// Specific hash request
+<span class="fc bfc" id="L127" title="All 2 branches covered.">		if (request.getParameterMap().containsKey(&quot;id&quot;)) {</span>
+
+<span class="fc" id="L129">			PreparedStatement statement = connection</span>
+<span class="fc" id="L130">					.prepareStatement(&quot;select * from &quot; + tableName + &quot; WHERE hash == ?&quot;);</span>
+<span class="fc" id="L131">			statement.setString(1, request.getParameter(&quot;id&quot;));</span>
+
+			// disable search by setting totalitems to -1
+<span class="fc" id="L134">			context.put(&quot;totalitems&quot;, -1);</span>
+<span class="fc" id="L135">			context.put(&quot;singleitem&quot;, true);</span>
+
+<span class="fc" id="L137">			ResultSet result = statement.executeQuery();</span>
+
+<span class="fc bfc" id="L139" title="All 2 branches covered.">			while (result.next())</span>
+<span class="fc" id="L140">				items.add(classConstructor.newInstance(result));</span>
+
+<span class="fc" id="L142">			result.close();</span>
+<span class="fc" id="L143">			context.put(&quot;items&quot;, items);</span>
+<span class="fc" id="L144">			statement.close();</span>
+<span class="pc bpc" id="L145" title="1 of 6 branches missed.">		} else if (isContentCreatorSearch &amp;&amp; !isContentNameSearch &amp;&amp; !isCreatorNameSearch) {</span>
+<span class="fc" id="L146">			performCreatorSearchQuery(queryBase, &quot;normalizedName ASC&quot;);</span>
+<span class="fc" id="L147">			GetCreatorInfo();</span>
+		}
+		else {
+<span class="fc" id="L150">			performSearchQuery(queryBase, &quot;normalizedName ASC&quot;);</span>
+		}
+
+		// JSON hijack if specified in the parameters
+<span class="fc bfc" id="L154" title="All 4 branches covered.">		if (request.getParameterMap().containsKey(&quot;format&quot;) &amp;&amp; request.getParameter(&quot;format&quot;).equals(&quot;json&quot;)) {</span>
+<span class="fc" id="L155">			Gson gson = new Gson();</span>
+<span class="fc" id="L156">			return gson.toJson(context);</span>
+		}
+
+<span class="fc" id="L159">		connection.close();</span>
+		// Output to client
+<span class="fc" id="L161">		return writeToTemplate();</span>
+	}
+
+	/*
+	 * For POST requests. Perform a request based on the parameters given (search
+	 * and/or pages) and return the matching subtemplate.
+	 */
+	public String doSearchGeneric(int type) throws Exception {
+
+<span class="fc" id="L170">		initializeTemplate(type, true);</span>
+
+		// Build both data and count queries
+<span class="fc" id="L173">		String queryBase = &quot;FROM &quot; + tableName + &quot; WHERE &quot;;</span>
+<span class="pc bpc" id="L174" title="1 of 4 branches missed.">		queryBase += (isContentNameSearch || isCreatorNameSearch) ? &quot;name LIKE ? AND creator LIKE ? AND &quot; : &quot;&quot;;</span>
+<span class="fc" id="L175">		queryBase += &quot;id NOT LIKE '%them%'&quot;;</span>
+
+<span class="pc bpc" id="L177" title="2 of 6 branches missed.">		if (isContentCreatorSearch &amp;&amp; !isContentNameSearch &amp;&amp; !isCreatorNameSearch) {</span>
+<span class="fc" id="L178">			performCreatorSearchQuery(queryBase, &quot;normalizedName ASC&quot;);</span>
+<span class="fc" id="L179">			GetCreatorInfo();</span>
+		}
+		else
+<span class="fc" id="L182">			performSearchQuery(queryBase, &quot;normalizedName ASC&quot;);</span>
+
+		// JSON hijack if specified in the parameters
+<span class="pc bpc" id="L185" title="1 of 4 branches missed.">		if (request.getParameterMap().containsKey(&quot;format&quot;) &amp;&amp; request.getParameter(&quot;format&quot;).equals(&quot;json&quot;)) {</span>
+<span class="fc" id="L186">			Gson gson = new Gson();</span>
+<span class="fc" id="L187">			return gson.toJson(context);</span>
+		}
+
+<span class="fc" id="L190">		connection.close();</span>
+<span class="fc" id="L191">		return writeToTemplate();</span>
+	}
+
+	/*
+	 * Default query or search by creator name and/or content name
+	 */
+	protected void performSearchQuery(String queryBase, String defaultOrderBy) throws Exception {
+
+<span class="fc" id="L199">		String orderBy = defaultOrderBy;</span>
+
+		// Change order if the parameter was given
+<span class="fc bfc" id="L202" title="All 4 branches covered.">		if (isSortedBy &amp;&amp; request.getParameter(&quot;sort_by&quot;).equals(&quot;date&quot;)) {</span>
+<span class="fc" id="L203">			orderBy = &quot;timeStamp DESC&quot;;</span>
+		}
+
+<span class="fc bfc" id="L206" title="All 4 branches covered.">		if (isSortedBy &amp;&amp; request.getParameter(&quot;sort_by&quot;).equals(&quot;name&quot;)) {</span>
+<span class="fc" id="L207">			orderBy = &quot;normalizedName ASC&quot;;</span>
+		}
+
+<span class="fc" id="L210">		String query = &quot;SELECT * &quot; + queryBase + &quot; ORDER BY &quot; + orderBy + &quot; LIMIT 15 OFFSET ?&quot;;</span>
+<span class="fc" id="L211">		String queryCount = &quot;SELECT COUNT(id) &quot; + queryBase;</span>
+
+<span class="fc" id="L213">		PreparedStatement ret = connection.prepareStatement(query);</span>
+<span class="fc" id="L214">		PreparedStatement retCount = connection.prepareStatement(queryCount);</span>
+
+		// Those filters go in the LIKE parts of the query
+<span class="fc bfc" id="L217" title="All 2 branches covered.">		String name    = isContentNameSearch ? request.getParameter(&quot;name&quot;) + &quot;%&quot; : &quot;%&quot;;</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">		String creator = isCreatorNameSearch ? request.getParameter(&quot;creator&quot;) + &quot;%&quot; : &quot;%&quot;;</span>
+
+		// Remove last char for context display
+<span class="fc" id="L221">		context.put(&quot;nameSearch&quot;, name.substring(0, name.length() - 1));</span>
+<span class="fc" id="L222">		context.put(&quot;creatorSearch&quot;, creator.substring(0, creator.length() - 1));</span>
+
+		// Remove creator and cartridge IDs from context
+<span class="fc" id="L225">		context.remove(&quot;creatorIdSearch&quot;);</span>
+<span class="fc" id="L226">		context.remove(&quot;cartridgeIdSearch&quot;);</span>
+
+<span class="fc" id="L228">		int page = 1;</span>
+<span class="fc bfc" id="L229" title="All 4 branches covered.">		if (request.getParameterMap().containsKey(&quot;page&quot;) &amp;&amp; !request.getParameter(&quot;page&quot;).isEmpty())</span>
+<span class="fc" id="L230">			page = Integer.parseInt(request.getParameter(&quot;page&quot;));</span>
+
+<span class="fc bfc" id="L232" title="All 4 branches covered.">		if (isContentNameSearch || isCreatorNameSearch) {</span>
+<span class="fc" id="L233">			ret.setString(1, name);</span>
+<span class="fc" id="L234">			ret.setString(2, creator);</span>
+<span class="fc" id="L235">			retCount.setString(1, name);</span>
+<span class="fc" id="L236">			retCount.setString(2, creator);</span>
+<span class="fc" id="L237">			ret.setInt(3, page * 15 - 15);</span>
+		} else
+<span class="fc" id="L239">			ret.setInt(1, page * 15 - 15);</span>
+
+<span class="fc" id="L241">		ResultSet result = ret.executeQuery();</span>
+
+<span class="fc bfc" id="L243" title="All 2 branches covered.">		while (result.next())</span>
+<span class="fc" id="L244">			items.add(classConstructor.newInstance(result));</span>
+
+<span class="fc" id="L246">		result.close();</span>
+<span class="fc" id="L247">		ret.close();</span>
+
+<span class="fc" id="L249">		context.put(&quot;items&quot;, items);</span>
+<span class="fc" id="L250">		context.put(&quot;totalitems&quot;, retCount.executeQuery().getInt(1));</span>
+<span class="fc" id="L251">		retCount.close();</span>
+<span class="fc" id="L252">	}</span>
+
+	/*
+	 * Query search by creator ID or cartridge ID
+	 */
+	protected void performCreatorSearchQuery(String queryBase, String defaultOrderBy) throws Exception {
+		// Get creatorId and cartridgeId for search query
+<span class="fc" id="L259">		String creatorId = request.getParameter(&quot;creator_id&quot;);</span>
+<span class="fc" id="L260">		String cartridgeId = request.getParameter(&quot;cartridge_id&quot;);</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">		boolean isLegitCart = !cartridgeId.equals(&quot;00000000000000000000000000000000&quot;);</span>
+
+		// Add creator/cartID checks to query
+<span class="fc" id="L264">		queryBase += &quot; AND creatorID = ? &quot;;</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">		queryBase += isLegitCart ? &quot; OR cartridgeID = ? &quot; : &quot;&quot;;</span>
+
+		// Default orderBy
+<span class="fc" id="L268">		String orderBy = defaultOrderBy;</span>
+
+		// Change order if the parameter was given
+<span class="fc bfc" id="L271" title="All 4 branches covered.">		if (isSortedBy &amp;&amp; request.getParameter(&quot;sort_by&quot;).equals(&quot;date&quot;)) {</span>
+<span class="fc" id="L272">			orderBy = &quot;timeStamp DESC&quot;;</span>
+		}
+
+<span class="fc bfc" id="L275" title="All 4 branches covered.">		if (isSortedBy &amp;&amp; request.getParameter(&quot;sort_by&quot;).equals(&quot;name&quot;)) {</span>
+<span class="fc" id="L276">			orderBy = &quot;normalizedName ASC&quot;;</span>
+		}
+
+<span class="fc" id="L279">		String query = &quot;SELECT * &quot; + queryBase + &quot; ORDER BY &quot; + orderBy + &quot; LIMIT 15 OFFSET ?&quot;;</span>
+<span class="fc" id="L280">		String queryCount = &quot;SELECT COUNT(id) &quot; + queryBase;</span>
+
+<span class="fc" id="L282">		PreparedStatement ret = connection.prepareStatement(query);</span>
+<span class="fc" id="L283">		PreparedStatement retCount = connection.prepareStatement(queryCount);</span>
+
+		// Add creator and cartridge IDs to context
+<span class="fc" id="L286">		context.put(&quot;creatorIdSearch&quot;, creatorId);</span>
+<span class="fc" id="L287">		context.put(&quot;cartridgeIdSearch&quot;, cartridgeId);</span>
+
+		// remove name and creator search fields from context
+<span class="fc" id="L290">		context.remove(&quot;nameSearch&quot;);</span>
+<span class="fc" id="L291">		context.remove(&quot;creatorSearch&quot;);</span>
+
+<span class="fc" id="L293">		int page = 1;</span>
+<span class="fc bfc" id="L294" title="All 4 branches covered.">		if (request.getParameterMap().containsKey(&quot;page&quot;) &amp;&amp; !request.getParameter(&quot;page&quot;).isEmpty())</span>
+<span class="fc" id="L295">			page = Integer.parseInt(request.getParameter(&quot;page&quot;));</span>
+
+		// Set values for prepared statement
+<span class="fc" id="L298">		ret.setString(1, creatorId);</span>
+<span class="fc" id="L299">		retCount.setString(1, creatorId);</span>
+
+<span class="fc bfc" id="L301" title="All 2 branches covered.">		if (isLegitCart) {</span>
+<span class="fc" id="L302">			ret.setString(2, cartridgeId);</span>
+<span class="fc" id="L303">			retCount.setString(2, cartridgeId);</span>
+<span class="fc" id="L304">			ret.setInt(3, page * 15 - 15);</span>
+		}
+		else
+<span class="fc" id="L307">			ret.setInt(2, page * 15 - 15);</span>
+
+<span class="fc" id="L309">		ResultSet result = ret.executeQuery();</span>
+
+<span class="fc bfc" id="L311" title="All 2 branches covered.">		while (result.next())</span>
+<span class="fc" id="L312">			items.add(classConstructor.newInstance(result));</span>
+
+<span class="fc" id="L314">		result.close();</span>
+<span class="fc" id="L315">		ret.close();</span>
+
+<span class="fc" id="L317">		context.put(&quot;items&quot;, items);</span>
+<span class="fc" id="L318">		context.put(&quot;totalitems&quot;, retCount.executeQuery().getInt(1));</span>
+		
+<span class="fc" id="L320">		retCount.close();</span>
+<span class="fc" id="L321">	}</span>
+
+	protected void GetCreatorInfo() throws Exception {
+		/*  TODO:
+		 *  This method is fully functional but is commented out so that it
+		 *  will not go into the current release to prevent unnecessary DB calls
+		 */ 
+
+		// String creatorId = request.getParameter(&quot;creator_id&quot;);
+		// String cartridgeId = request.getParameter(&quot;cartridge_id&quot;);
+
+		// CreatorDetails creatorDetails = new CreatorDetails(connection, creatorId, cartridgeId);
+		
+		// context.put(&quot;displaycreatordetails&quot;, true);
+		// context.put(&quot;creatordetails&quot;, creatorDetails);
+<span class="fc" id="L336">	}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

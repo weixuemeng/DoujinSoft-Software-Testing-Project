@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MioStorage.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft.utils</a> &gt; <span class="el_source">MioStorage.java</span></div><h1>MioStorage.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft.utils;
+
+
+import com.xperia64.diyedit.FileByteOperations;
+import com.xperia64.diyedit.editors.GameEdit;
+import com.xperia64.diyedit.editors.MangaEdit;
+import com.xperia64.diyedit.editors.RecordEdit;
+import com.xperia64.diyedit.metadata.Metadata;
+
+import java.io.File;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Deals with .mio files and their positioning in the database.
+ */
+<span class="nc" id="L26">public class MioStorage {</span>
+
+    public static String computeMioHash(byte[] data) {
+
+        try {
+<span class="fc" id="L31">            MessageDigest messageDigest = MessageDigest.getInstance(&quot;MD5&quot;);</span>
+<span class="fc" id="L32">            messageDigest.update(data);</span>
+<span class="fc" id="L33">            byte[] digest = messageDigest.digest();</span>
+
+<span class="fc" id="L35">            return convertByteToHex(digest);</span>
+<span class="nc" id="L36">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L37">            return &quot;&quot;;</span>
+        }
+
+    }
+
+    public static String convertByteToHex(byte[] byteData) {
+
+<span class="fc" id="L44">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (int i = 0; i &lt; byteData.length; i++) {</span>
+<span class="fc" id="L46">            sb.append(Integer.toString((byteData[i] &amp; 0xff) + 0x100, 16).substring(1));</span>
+        }
+
+<span class="fc" id="L49">        return sb.toString();</span>
+    }
+
+    public static void ScanForNewMioFiles(String dataDir, Logger logger) throws SQLException {
+<span class="fc" id="L53">        System.out.println(&quot;here&quot;);</span>
+<span class="fc" id="L54">        File[] files = new File(dataDir + &quot;/mio/&quot;).listFiles();</span>
+<span class="fc" id="L55">        System.out.println(dataDir + &quot;/mio/&quot;);</span>
+
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        for (File f : files) {</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            if (!f.isDirectory()) {</span>
+<span class="nc" id="L59">                try (Connection connection = DriverManager</span>
+<span class="nc" id="L60">                        .getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+<span class="nc" id="L61">                    byte[] mioData = FileByteOperations.read(f.getAbsolutePath());</span>
+<span class="nc" id="L62">                    Metadata metadata = new Metadata(mioData);</span>
+<span class="nc" id="L63">                    String hash = MioStorage.computeMioHash(mioData);</span>
+<span class="nc" id="L64">                    String ID = MioUtils.computeMioID(metadata);</span>
+<span class="nc" id="L65">                    String creatorId = metadata.getCreatorId();</span>
+<span class="nc" id="L66">                    String cartridgeId = metadata.getCartridgeId();</span>
+<span class="nc" id="L67">                    int type = mioData.length;</span>
+<span class="nc" id="L68">                    PreparedStatement insertQuery = parseMioBase(metadata, hash, ID, creatorId, connection, type);</span>
+<span class="nc" id="L69">                    System.out.println(mioData.length);</span>
+
+
+                    // The file is game, manga or record, depending on its size.
+<span class="nc bnc" id="L73" title="All 2 branches missed.">                    if (mioData.length == MioUtils.Types.GAME) {</span>
+<span class="nc" id="L74">                        GameEdit game = new GameEdit(mioData);</span>
+<span class="nc" id="L75">                        System.out.println(&quot;game&quot;);</span>
+
+                        // Game-specific: add the preview picture and isNsfw flag.
+                        // CreatorID is added here as it was put in later - ditto for Manga/Records.
+<span class="nc" id="L79">                        insertQuery.setString(9, MioUtils.mapColorByte(game.getCartColor()));</span>
+<span class="nc" id="L80">                        insertQuery.setString(10, MioUtils.mapColorByte(game.getLogoColor()));</span>
+<span class="nc" id="L81">                        insertQuery.setInt(11, game.getLogo());</span>
+<span class="nc" id="L82">                        insertQuery.setString(12, MioUtils.getBase64GamePreview(mioData));</span>
+<span class="nc" id="L83">                        insertQuery.setString(13, creatorId);</span>
+<span class="nc" id="L84">                        insertQuery.setBoolean(14, false);</span>
+<span class="nc" id="L85">                        insertQuery.setString(15, cartridgeId);</span>
+
+<span class="nc" id="L87">                        System.out.println(&quot;here&quot;);</span>
+
+<span class="nc" id="L89">                        logger.log(Level.INFO, &quot;Game;&quot; + hash + &quot;;&quot; + ID + &quot;;&quot; + game.getName() + &quot;\n&quot;);</span>
+                    }
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                    if (mioData.length == MioUtils.Types.MANGA) {</span>
+<span class="nc" id="L93">                        MangaEdit manga = new MangaEdit(mioData);</span>
+
+                        // Manga-specific: add the panels
+<span class="nc" id="L96">                        insertQuery.setString(9, MioUtils.mapColorByte(manga.getMangaColor()));</span>
+<span class="nc" id="L97">                        insertQuery.setString(10, MioUtils.mapColorByte(manga.getLogoColor()));</span>
+<span class="nc" id="L98">                        insertQuery.setInt(11, manga.getLogo());</span>
+<span class="nc" id="L99">                        insertQuery.setString(12, MioUtils.getBase64Manga(mioData, 0));</span>
+<span class="nc" id="L100">                        insertQuery.setString(13, MioUtils.getBase64Manga(mioData, 1));</span>
+<span class="nc" id="L101">                        insertQuery.setString(14, MioUtils.getBase64Manga(mioData, 2));</span>
+<span class="nc" id="L102">                        insertQuery.setString(15, MioUtils.getBase64Manga(mioData, 3));</span>
+<span class="nc" id="L103">                        insertQuery.setString(16, creatorId);</span>
+<span class="nc" id="L104">                        insertQuery.setString(17, cartridgeId);</span>
+
+<span class="nc" id="L106">                        logger.log(Level.INFO, &quot;Manga;&quot; + hash + &quot;;&quot; + ID + &quot;;&quot; + manga.getName() + &quot;\n&quot;);</span>
+                    }
+
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                    if (mioData.length == MioUtils.Types.RECORD) {</span>
+<span class="nc" id="L110">                        RecordEdit record = new RecordEdit(mioData);</span>
+
+<span class="nc" id="L112">                        insertQuery.setString(9, MioUtils.mapColorByte(record.getRecordColor()));</span>
+<span class="nc" id="L113">                        insertQuery.setString(10, MioUtils.mapColorByte(record.getLogoColor()));</span>
+<span class="nc" id="L114">                        insertQuery.setInt(11, record.getLogo());</span>
+<span class="nc" id="L115">                        insertQuery.setString(12, creatorId);</span>
+<span class="nc" id="L116">                        insertQuery.setString(13, cartridgeId);</span>
+
+<span class="nc" id="L118">                        logger.log(Level.INFO, &quot;Record;&quot; + hash + &quot;;&quot; + ID + &quot;;&quot; + record.getName() + &quot;\n&quot;);</span>
+                    }
+
+<span class="nc" id="L121">                    logger.log(Level.INFO, &quot;Inserting into DB&quot;);</span>
+
+<span class="nc" id="L123">                    insertQuery.executeUpdate();</span>
+<span class="nc" id="L124">                    insertQuery.close();</span>
+<span class="nc" id="L125">                    consumeMio(f, hash, type);</span>
+<span class="nc" id="L126">                } catch (SQLException e) {</span>
+<span class="nc" id="L127">                    logger.log(Level.SEVERE,</span>
+                            &quot;Couldn't insert this mio in the database - Likely a duplicate file, moving on.&quot;);
+<span class="nc" id="L129">                    new File(dataDir + &quot;/duplicates&quot;).mkdirs();</span>
+<span class="nc" id="L130">                    File target = new File(dataDir + &quot;/duplicates/&quot; + f.getName());</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                    if (target.exists())</span>
+<span class="nc" id="L132">                        target.delete();</span>
+<span class="nc" id="L133">                    f.renameTo(target);</span>
+<span class="nc" id="L134">                    logger.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L135">                }</span>
+            }
+        }
+<span class="fc" id="L138">    }</span>
+
+    /*
+     * Standard parsing for every .mio file - Returns the first values of the final
+     * SQL Statement.
+     */
+    private static PreparedStatement parseMioBase(Metadata mio, String hash, String ID, String creatorID, Connection co,
+            int type)
+            throws SQLException {
+
+<span class="nc" id="L148">        PreparedStatement ret = null;</span>
+<span class="nc" id="L149">        String query = &quot;&quot;;</span>
+
+<span class="nc bnc" id="L151" title="All 4 branches missed.">        switch (type) {</span>
+            case MioUtils.Types.GAME:
+<span class="nc" id="L153">                query = &quot;INSERT INTO Games VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;;</span>
+<span class="nc" id="L154">                break;</span>
+            case MioUtils.Types.MANGA:
+<span class="nc" id="L156">                query = &quot;INSERT INTO Manga VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;;</span>
+<span class="nc" id="L157">                break;</span>
+            case MioUtils.Types.RECORD:
+<span class="nc" id="L159">                query = &quot;INSERT INTO Records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)&quot;;</span>
+                break;
+        }
+
+<span class="nc" id="L163">        ret = co.prepareStatement(query);</span>
+
+<span class="nc" id="L165">        String normalizedName = mio.getName().replaceAll(&quot;\\p{Punct}&quot;, &quot;z&quot;);</span>
+
+<span class="nc" id="L167">        ret.setString(1, hash);</span>
+<span class="nc" id="L168">        ret.setString(2, ID);</span>
+<span class="nc" id="L169">        ret.setString(3, mio.getName());</span>
+<span class="nc" id="L170">        ret.setString(4, normalizedName);</span>
+<span class="nc" id="L171">        ret.setString(5, mio.getCreator());</span>
+<span class="nc" id="L172">        ret.setString(6, mio.getBrand());</span>
+<span class="nc" id="L173">        ret.setString(7, mio.getDescription());</span>
+
+<span class="nc" id="L175">        int timestamp = mio.getTimestamp();</span>
+        // If the timestamp is larger than today's date, set it to today's date
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        if (MioUtils.DIY_TIMESTAMP_ORIGIN.plusDays(timestamp).toLocalDate().isAfter(LocalDate.now()))</span>
+<span class="nc" id="L178">            timestamp = (int) MioUtils.DIY_TIMESTAMP_ORIGIN.until(ZonedDateTime.now(), ChronoUnit.DAYS);</span>
+
+<span class="nc" id="L180">        ret.setInt(8, timestamp);</span>
+
+<span class="nc" id="L182">        return ret;</span>
+    }
+
+    /*
+     * Compress file, move to directory and delete initial file.
+     */
+    private static boolean consumeMio(File f, String hash, int type) {
+<span class="nc" id="L189">        Logger SQLog = Logger.getLogger(&quot;SQLite&quot;);</span>
+<span class="nc" id="L190">        String baseDir = &quot;&quot;;</span>
+
+<span class="nc bnc" id="L192" title="All 4 branches missed.">        switch (type) {</span>
+            case (MioUtils.Types.GAME):
+<span class="nc" id="L194">                baseDir = f.getParent() + &quot;/game/&quot;;</span>
+<span class="nc" id="L195">                break;</span>
+            case (MioUtils.Types.MANGA):
+<span class="nc" id="L197">                baseDir = f.getParent() + &quot;/manga/&quot;;</span>
+<span class="nc" id="L198">                break;</span>
+            case (MioUtils.Types.RECORD):
+<span class="nc" id="L200">                baseDir = f.getParent() + &quot;/record/&quot;;</span>
+                break;
+        }
+
+        // Create directories if they don't exist
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (!new File(baseDir).exists())</span>
+<span class="nc" id="L206">            new File(baseDir).mkdirs();</span>
+
+<span class="nc" id="L208">        SQLog.log(Level.INFO, &quot;Moving file to &quot; + baseDir + hash + &quot;.miozip&quot;);</span>
+<span class="nc" id="L209">        File f2 = new File(baseDir + hash + &quot;.miozip&quot;);</span>
+
+        try {
+
+<span class="nc bnc" id="L213" title="All 2 branches missed.">            if (f2.exists())</span>
+<span class="nc" id="L214">                throw new Exception(&quot;Destination miozip already exists! How could this happen?&quot;);</span>
+
+<span class="nc" id="L216">            MioCompress.compressMio(f, f2, f.getName());</span>
+            // Only delete the initial .mio if the zipped variant has been properly
+            // processed
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            if (f2.exists())</span>
+<span class="nc" id="L220">                f.delete();</span>
+
+<span class="nc" id="L222">            return true;</span>
+<span class="nc" id="L223">        } catch (Exception e) {</span>
+<span class="nc" id="L224">            e.printStackTrace();</span>
+<span class="nc" id="L225">            return false;</span>
+        }
+    }
+
+    /*
+     * Test method to update files in /mio directory with creatorIDs.
+     * This is split into subdirectories (games, manga, and records) due to the size of the return string.
+     */
+    public static void UpdateMetadata(Connection connection, String dataDir, Logger logger, String subdirectory) throws SQLException {
+<span class="nc" id="L234">        File[] gameFiles = new File(dataDir + &quot;/mio/&quot; + subdirectory).listFiles();</span>
+        
+<span class="nc" id="L236">        PreparedStatement query = null;</span>
+<span class="nc" id="L237">        logger.log(Level.INFO, &quot;Mio metadata update: Looping Files - &quot; + subdirectory);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        for (File f : gameFiles) {</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            if (!f.isDirectory()) {</span>
+                try
+                {
+<span class="nc" id="L242">                    File uncompressedFile = MioCompress.uncompressMio(f);</span>
+<span class="nc" id="L243">                    byte[] mioData = FileByteOperations.read(uncompressedFile.getAbsolutePath());</span>
+    
+<span class="nc" id="L245">                    Metadata metadata = new Metadata(mioData);</span>
+<span class="nc" id="L246">                    String hash = MioStorage.computeMioHash(mioData);</span>
+<span class="nc" id="L247">                    String name = metadata.getName();</span>
+<span class="nc" id="L248">                    String desc = metadata.getDescription();</span>
+<span class="nc" id="L249">                    String brand = metadata.getBrand();</span>
+<span class="nc" id="L250">                    String creator = metadata.getCreator();</span>
+<span class="nc" id="L251">                    String creatorId = metadata.getCreatorId();</span>
+<span class="nc" id="L252">                    String cartridgeId = metadata.getCartridgeId();</span>
+    
+<span class="nc" id="L254">                    int type = mioData.length;</span>
+    
+                    // Log and execute query
+<span class="nc" id="L257">                    query = UpdateMetadataQuery(connection, type, hash, name, desc, brand, creator, creatorId, cartridgeId);</span>
+<span class="nc" id="L258">                    logger.log(Level.INFO, query.toString());</span>
+<span class="nc" id="L259">                    query.executeUpdate();</span>
+<span class="nc" id="L260">                    uncompressedFile.delete();</span>
+                }
+<span class="nc" id="L262">                catch (Exception e)</span>
+                {
+<span class="nc" id="L264">                    logger.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L265">                    continue;</span>
+<span class="nc" id="L266">                }</span>
+            }
+        }
+<span class="nc" id="L269">    }</span>
+
+    /*
+     * Test method to get SQL statement to update creator ID
+     */
+    private static PreparedStatement UpdateMetadataQuery(Connection co, int type, String hash, String name, String desc, String brand, String creator, String creatorId, String cartridgeId) throws Exception
+    {
+<span class="nc" id="L276">        PreparedStatement ret = null;</span>
+<span class="nc" id="L277">        String update = &quot;&quot;;</span>
+    
+<span class="nc bnc" id="L279" title="All 4 branches missed.">        switch (type) {</span>
+            case MioUtils.Types.GAME:
+<span class="nc" id="L281">            update = &quot;UPDATE Games SET name = ?, description = ?, brand = ?, creator = ?, creatorID = ?, cartridgeID = ? WHERE hash == ?; &quot;;</span>
+<span class="nc" id="L282">                break;</span>
+            case MioUtils.Types.MANGA:
+<span class="nc" id="L284">            update = &quot;UPDATE Manga SET name = ?, description = ?, brand = ?, creator = ?, creatorID = ?, cartridgeID = ? WHERE hash == ?;&quot;;</span>
+<span class="nc" id="L285">                break;</span>
+            case MioUtils.Types.RECORD:
+<span class="nc" id="L287">            update = &quot;UPDATE Records SET name = ?, description = ?, brand = ?, creator = ?, creatorID = ?, cartridgeID = ? WHERE hash == ?;&quot;;</span>
+<span class="nc" id="L288">                break;</span>
+            default:
+<span class="nc" id="L290">            throw new Exception(&quot;Invalid file size&quot;);</span>
+        }
+
+<span class="nc" id="L293">        ret = co.prepareStatement(update);</span>
+
+<span class="nc" id="L295">        ret.setString(1, name);</span>
+<span class="nc" id="L296">        ret.setString(2, desc);</span>
+<span class="nc" id="L297">        ret.setString(3, brand);</span>
+<span class="nc" id="L298">        ret.setString(4, creator);</span>
+<span class="nc" id="L299">        ret.setString(5, creatorId);</span>
+<span class="nc" id="L300">        ret.setString(6, cartridgeId);</span>
+<span class="nc" id="L301">        ret.setString(7, hash);</span>
+
+<span class="nc" id="L303">        return ret;</span>
+    }
+            
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

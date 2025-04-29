@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">AdminServlet.java</span></div><h1>AdminServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.difegue.doujinsoft.templates.BaseMio;
+import com.difegue.doujinsoft.templates.Collection;
+import com.difegue.doujinsoft.utils.CollectionUtils;
+import com.difegue.doujinsoft.utils.MioCompress;
+import com.difegue.doujinsoft.utils.MioStorage;
+import com.difegue.doujinsoft.utils.MioUtils;
+import com.difegue.doujinsoft.wc24.MailItem;
+import com.difegue.doujinsoft.wc24.WiiConnect24Api;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
+import com.mitchellbosecke.pebble.PebbleEngine;
+import com.mitchellbosecke.pebble.error.PebbleException;
+import com.mitchellbosecke.pebble.template.PebbleTemplate;
+import com.xperia64.diyedit.FileByteOperations;
+import com.xperia64.diyedit.editors.GameEdit;
+import com.xperia64.diyedit.metadata.Metadata;
+
+import org.apache.commons.codec.binary.Base64;
+
+@WebServlet(&quot;/manage&quot;)
+public class AdminServlet extends HttpServlet {
+
+    private static final long serialVersionUID = 1L;
+    private Logger ServletLog;
+
+    /**
+     * @see HttpServlet#HttpServlet()
+     */
+    public AdminServlet() {
+<span class="nc" id="L47">        super();</span>
+<span class="nc" id="L48">        ServletLog = Logger.getLogger(&quot;AdminServlet&quot;);</span>
+<span class="nc" id="L49">        ServletLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));</span>
+<span class="nc" id="L50">    }</span>
+
+    protected void doGet(HttpServletRequest req, HttpServletResponse res)
+            throws ServletException, IOException {
+
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (!authenticate(req, res))</span>
+<span class="nc" id="L56">            return;</span>
+
+        // ./manage?preview=true&amp;file={file} can be used to download pending mio files.
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;preview&quot;)) {</span>
+<span class="nc" id="L60">            ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L61">            String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+            // Serve file asked for
+<span class="nc" id="L64">            String filename = req.getParameter(&quot;file&quot;);</span>
+<span class="nc" id="L65">            File previewMio = new File(dataDir + &quot;/pending/&quot; + filename);</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            if (previewMio.exists()) {</span>
+<span class="nc" id="L67">                res.setContentType(&quot;application/octet-stream&quot;);</span>
+<span class="nc" id="L68">                res.setHeader(&quot;Content-Disposition&quot;, &quot;attachment; filename=\&quot;&quot; + filename + &quot;\&quot;&quot;);</span>
+<span class="nc" id="L69">                res.setContentLength((int) previewMio.length());</span>
+<span class="nc" id="L70">                FileInputStream fileIn = new FileInputStream(previewMio);</span>
+<span class="nc" id="L71">                OutputStream out = res.getOutputStream();</span>
+<span class="nc" id="L72">                byte[] outputByte = new byte[4096];</span>
+                // copy binary content to output stream
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                while (fileIn.read(outputByte, 0, 4096) != -1) {</span>
+<span class="nc" id="L75">                    out.write(outputByte, 0, 4096);</span>
+                }
+<span class="nc" id="L77">                fileIn.close();</span>
+<span class="nc" id="L78">                out.flush();</span>
+<span class="nc" id="L79">                out.close();</span>
+<span class="nc" id="L80">            } else {</span>
+<span class="nc" id="L81">                res.sendError(HttpServletResponse.SC_NOT_FOUND);</span>
+            }
+<span class="nc" id="L83">            return;</span>
+        }
+
+        // Allowed
+<span class="nc" id="L87">        res.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L88">        ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L89">        String output = &quot;&quot;;</span>
+
+        try {
+<span class="nc" id="L92">            output = doStandardPage(application);</span>
+<span class="nc" id="L93">            res.getWriter().append(output);</span>
+
+<span class="nc" id="L95">        } catch (PebbleException e) {</span>
+<span class="nc" id="L96">            ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L97">        }</span>
+<span class="nc" id="L98">    }</span>
+
+    /**
+     * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+     *      response)
+     */
+    protected void doPost(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+
+<span class="nc" id="L106">        ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L107">        String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+<span class="nc" id="L108">        String output = &quot;Nothing!&quot;;</span>
+        // Needed for mio filenames with non-standard characters
+<span class="nc" id="L110">        req.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (!authenticate(req, res))</span>
+<span class="nc" id="L113">            return;</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;nsfw_ids&quot;)) {</span>
+            // Add hashes to NSFW list
+            // Get content of textarea and split by line
+<span class="nc" id="L118">            output = &quot;param is &quot; + req.getParameter(&quot;nsfw_ids&quot;);</span>
+<span class="nc" id="L119">            String[] nsfwHashes = req.getParameter(&quot;nsfw_ids&quot;).split(&quot;\\r?\\n&quot;);</span>
+            // Add to NSFW list
+<span class="nc" id="L121">            try (Connection connection = DriverManager</span>
+<span class="nc" id="L122">                    .getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+<span class="nc" id="L123">                Statement statement = connection.createStatement();</span>
+<span class="nc" id="L124">                statement.setQueryTimeout(30); // set timeout to 30 sec.</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                for (String hash : nsfwHashes) {</span>
+<span class="nc" id="L126">                    output += &quot;Adding &quot; + hash + &quot; to NSFW list... \n&quot;;</span>
+<span class="nc" id="L127">                    statement.executeUpdate(&quot;update Games set isNsfw=1 where hash='&quot; + hash + &quot;'&quot;);</span>
+                }
+<span class="nc" id="L129">            } catch (SQLException e) {</span>
+<span class="nc" id="L130">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L131">                output += e.getMessage();</span>
+<span class="nc" id="L132">            }</span>
+<span class="nc" id="L133">            output += &quot;Added &quot; + nsfwHashes.length + &quot; hashes to NSFW list.&quot;;</span>
+        }
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;collection_name&quot;)) {</span>
+            // New collection
+<span class="nc" id="L138">            Collection c = new Collection();</span>
+<span class="nc" id="L139">            c.collection_type = req.getParameter(&quot;collection_type&quot;);</span>
+<span class="nc" id="L140">            c.collection_name = req.getParameter(&quot;collection_name&quot;);</span>
+<span class="nc" id="L141">            c.collection_icon = req.getParameter(&quot;collection_icon&quot;);</span>
+<span class="nc" id="L142">            c.collection_desc = req.getParameter(&quot;collection_desc&quot;);</span>
+<span class="nc" id="L143">            c.collection_desc2 = req.getParameter(&quot;collection_desc2&quot;);</span>
+<span class="nc" id="L144">            c.collection_color = req.getParameter(&quot;collection_color&quot;);</span>
+<span class="nc" id="L145">            c.background_pic = req.getParameter(&quot;background_pic&quot;);</span>
+<span class="nc" id="L146">            c.mios = new String[0];</span>
+
+            // Serialize new collection to file
+<span class="nc" id="L149">            File collectionFile = new File(dataDir + &quot;/collections/&quot; + req.getParameter(&quot;collection_id&quot;) + &quot;.json&quot;);</span>
+<span class="nc" id="L150">            CollectionUtils.SaveCollectionToFile(c, collectionFile.getAbsolutePath());</span>
+<span class="nc" id="L151">            output = &quot;Collection created at &quot; + collectionFile.getAbsolutePath();</span>
+
+        }
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;approvedmios&quot;)) {</span>
+<span class="nc" id="L156">            output = &quot;&quot;;</span>
+            // Approved/denied files w. collections
+<span class="nc bnc" id="L158" title="All 2 branches missed.">            for (String key : req.getParameterMap().keySet()) {</span>
+
+                // Only take approve-x.mio keys
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                if (!key.startsWith(&quot;approve-&quot;))</span>
+<span class="nc" id="L162">                    continue;</span>
+
+<span class="nc" id="L164">                var s = key.replace(&quot;approve-&quot;, &quot;&quot;);</span>
+<span class="nc" id="L165">                output += &quot;Looking for approved file &quot; + s + &quot;...\n&quot;;</span>
+<span class="nc" id="L166">                File approvedMio = new File(dataDir + &quot;/pending/&quot; + s);</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                if (approvedMio.exists()) {</span>
+<span class="nc" id="L168">                    output += &quot;Found! Adding to mio folder.\n&quot;;</span>
+                    // Add to collection
+<span class="nc" id="L170">                    var cKey = &quot;collection-&quot; + s;</span>
+<span class="nc bnc" id="L171" title="All 4 branches missed.">                    if (req.getParameterMap().containsKey(cKey) &amp;&amp; !req.getParameter(cKey).isEmpty()) {</span>
+
+<span class="nc" id="L173">                        output += &quot;Added to collection &quot; + req.getParameter(cKey) + &quot;\n&quot;;</span>
+
+                        // Deserialize collection, add new file hash and reserialize it
+<span class="nc" id="L176">                        String path = dataDir + &quot;/collections/&quot; + req.getParameter(cKey);</span>
+<span class="nc" id="L177">                        Collection c = CollectionUtils.GetCollectionFromFile(path);</span>
+<span class="nc" id="L178">                        c.addMioHash(MioStorage.computeMioHash(FileByteOperations.read(approvedMio.getAbsolutePath())));</span>
+<span class="nc" id="L179">                        CollectionUtils.SaveCollectionToFile(c, path);</span>
+
+                    }
+<span class="nc" id="L182">                    approvedMio.renameTo(new File(dataDir + &quot;/mio/&quot; + s));</span>
+                }
+<span class="nc" id="L184">            }</span>
+
+            // Delete all remaining files in the pending directory
+<span class="nc" id="L187">            File[] files = new File(dataDir + &quot;/pending/&quot;).listFiles();</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            if (files != null)</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">                for (File f : files) {</span>
+<span class="nc" id="L190">                    output += &quot;File &quot; + f.getName() + &quot; not approved -- deleting.\n&quot;;</span>
+<span class="nc" id="L191">                    f.delete();</span>
+                }
+
+            // Parse files in the mio dir
+            try {
+<span class="nc" id="L196">                MioStorage.ScanForNewMioFiles(dataDir, ServletLog);</span>
+<span class="nc" id="L197">            } catch (SQLException e) {</span>
+<span class="nc" id="L198">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L199">                output = e.getMessage();</span>
+<span class="nc" id="L200">            }</span>
+        }
+
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;sendmail&quot;)) {</span>
+            // Send Wii mail through WC24
+<span class="nc" id="L205">            ArrayList&lt;MailItem&gt; mails = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L206">            String message = req.getParameter(&quot;mail_content&quot;);</span>
+<span class="nc" id="L207">            String code = req.getParameter(&quot;wii_code&quot;);</span>
+
+<span class="nc" id="L209">            try (Connection connection = DriverManager</span>
+<span class="nc" id="L210">                    .getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                if (code.equals(&quot;0&quot;)) {</span>
+                    // Get all wii codes stored in the friends table and send a mail to each one
+<span class="nc" id="L213">                    Statement statement = connection.createStatement();</span>
+<span class="nc" id="L214">                    statement.setQueryTimeout(30); // set timeout to 30 sec.</span>
+<span class="nc" id="L215">                    ResultSet result = statement.executeQuery(&quot;select friendcode from Friends&quot;);</span>
+
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                    while (result.next())</span>
+<span class="nc" id="L218">                        mails.add(new MailItem(result.getString(&quot;friendcode&quot;), message));</span>
+
+<span class="nc" id="L220">                    result.close();</span>
+<span class="nc" id="L221">                    statement.close();</span>
+<span class="nc" id="L222">                } else {</span>
+<span class="nc" id="L223">                    mails.add(new MailItem(code, message));</span>
+                }
+
+<span class="nc" id="L226">                WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="nc" id="L227">                output = wc24.sendMails(mails);</span>
+
+<span class="nc" id="L229">            } catch (Exception e) {</span>
+<span class="nc" id="L230">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L231">                output = e.getMessage();</span>
+<span class="nc" id="L232">            }</span>
+        }
+
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;sendgame&quot;)) {</span>
+            // Send Wii mail through WC24
+<span class="nc" id="L237">            ArrayList&lt;MailItem&gt; mails = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L239">            String hash = req.getParameter(&quot;game_hash&quot;);</span>
+<span class="nc" id="L240">            String code = req.getParameter(&quot;wii_code&quot;);</span>
+
+<span class="nc" id="L242">            String mioPath = dataDir + &quot;/mio/game/&quot; + hash + &quot;.miozip&quot;;</span>
+<span class="nc" id="L243">            File uncompressedMio = MioCompress.uncompressMio(new File(mioPath));</span>
+<span class="nc" id="L244">            GameEdit data = new GameEdit(uncompressedMio.getAbsolutePath());</span>
+
+<span class="nc" id="L246">            try (Connection connection = DriverManager</span>
+<span class="nc" id="L247">                    .getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                if (code.equals(&quot;0&quot;)) {</span>
+                    // Get all wii codes stored in the friends table and send a mail to each one
+<span class="nc" id="L250">                    Statement statement = connection.createStatement();</span>
+<span class="nc" id="L251">                    statement.setQueryTimeout(30); // set timeout to 30 sec.</span>
+<span class="nc" id="L252">                    ResultSet result = statement.executeQuery(&quot;select friendcode from Friends&quot;);</span>
+
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                    while (result.next())</span>
+<span class="nc" id="L255">                        mails.add(new MailItem(result.getString(&quot;friendcode&quot;), data, MioUtils.Types.GAME, application));</span>
+
+<span class="nc" id="L257">                    result.close();</span>
+<span class="nc" id="L258">                    statement.close();</span>
+<span class="nc" id="L259">                } else {</span>
+<span class="nc" id="L260">                    mails.add(new MailItem(code, data, MioUtils.Types.GAME, application));</span>
+                }
+
+<span class="nc" id="L263">                WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="nc" id="L264">                output = wc24.sendMails(mails);</span>
+
+<span class="nc" id="L266">            } catch (Exception e) {</span>
+<span class="nc" id="L267">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L268">                output = e.getMessage();</span>
+<span class="nc" id="L269">            }</span>
+        }
+
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;fetch_wc24_mail&quot;)) {</span>
+
+            try {
+<span class="nc" id="L275">                WiiConnect24Api wc24 = new WiiConnect24Api(application);</span>
+<span class="nc" id="L276">                output = wc24.receiveMails();</span>
+<span class="nc" id="L277">                wc24.deleteMails();</span>
+<span class="nc" id="L278">            } catch (Exception e) {</span>
+<span class="nc" id="L279">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L280">                output = e.getMessage();</span>
+<span class="nc" id="L281">            }</span>
+
+        }
+
+        // Set/reset creator and cartridge IDs
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (req.getParameterMap().containsKey(&quot;set_creator_ids&quot;)) {</span>
+
+<span class="nc" id="L288">            try (Connection connection = DriverManager</span>
+<span class="nc" id="L289">                    .getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+
+<span class="nc" id="L291">                ServletLog.log(Level.INFO, &quot;Updating metadata for all .mio files...&quot;);</span>
+<span class="nc" id="L292">                MioStorage.UpdateMetadata(connection, dataDir, ServletLog, &quot;game&quot;);</span>
+<span class="nc" id="L293">                MioStorage.UpdateMetadata(connection, dataDir, ServletLog, &quot;manga&quot;);</span>
+<span class="nc" id="L294">                MioStorage.UpdateMetadata(connection, dataDir, ServletLog, &quot;record&quot;);</span>
+
+<span class="nc" id="L296">            } catch (Exception e) {</span>
+<span class="nc" id="L297">                ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L298">                output = e.getMessage();</span>
+<span class="nc" id="L299">            }</span>
+        }
+
+        // Output is dumb HTML
+<span class="nc" id="L303">        res.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L304">        res.getWriter().append(output);</span>
+<span class="nc" id="L305">    }</span>
+
+    // Generates the regular landing page.
+    private String doStandardPage(ServletContext application) throws PebbleException, IOException {
+
+<span class="nc" id="L310">        String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+<span class="nc" id="L311">        Map&lt;String, Object&gt; context = new HashMap&lt;&gt;();</span>
+
+        // Parse pending .mios and add them to the context
+<span class="nc" id="L314">        File[] files = new File(dataDir + &quot;/pending/&quot;).listFiles();</span>
+<span class="nc" id="L315">        HashMap&lt;String, BaseMio&gt; pending = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">        if (files != null)</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">            for (File f : files) {</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                if (!f.isDirectory()) {</span>
+<span class="nc" id="L319">                    byte[] mioData = FileByteOperations.read(f.getAbsolutePath());</span>
+<span class="nc" id="L320">                    Metadata metadata = new Metadata(mioData);</span>
+<span class="nc" id="L321">                    BaseMio mio = new BaseMio(metadata);</span>
+<span class="nc" id="L322">                    pending.put(f.getName(), mio);</span>
+                }
+            }
+<span class="nc" id="L325">        context.put(&quot;pendingMios&quot;, pending);</span>
+
+        // Parse collections and add them to the context
+<span class="nc" id="L328">        File[] collections = new File(dataDir + &quot;/collections/&quot;).listFiles();</span>
+<span class="nc" id="L329">        HashMap&lt;String, Collection&gt; parsedCollections = new HashMap&lt;&gt;();</span>
+
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        if (collections != null)</span>
+<span class="nc bnc" id="L332" title="All 2 branches missed.">            for (File f : collections) {</span>
+<span class="nc bnc" id="L333" title="All 2 branches missed.">                if (!f.isDirectory()) {</span>
+                    // Try opening the matching JSON file
+<span class="nc" id="L335">                    Gson gson = new Gson();</span>
+<span class="nc" id="L336">                    JsonReader jsonReader = new JsonReader(new FileReader(f));</span>
+                    // Auto bind the json to a class
+<span class="nc" id="L338">                    parsedCollections.put(f.getName(), gson.fromJson(jsonReader, Collection.class));</span>
+                }
+            }
+<span class="nc" id="L341">        context.put(&quot;collections&quot;, parsedCollections);</span>
+
+<span class="nc" id="L343">        PebbleEngine engine = new PebbleEngine.Builder().build();</span>
+        PebbleTemplate compiledTemplate;
+
+        // Getting base template
+<span class="nc" id="L347">        compiledTemplate = engine.getTemplate(application.getRealPath(&quot;/WEB-INF/templates/admin.html&quot;));</span>
+
+        // Output to client
+<span class="nc" id="L350">        Writer writer = new StringWriter();</span>
+<span class="nc" id="L351">        compiledTemplate.evaluate(writer, context);</span>
+<span class="nc" id="L352">        String output = writer.toString();</span>
+
+<span class="nc" id="L354">        return output;</span>
+
+    }
+
+    private boolean authenticate(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
+        // Get Authorization header
+<span class="nc" id="L360">        String auth = req.getHeader(&quot;Authorization&quot;);</span>
+        // Do we allow that user?
+<span class="nc bnc" id="L362" title="All 2 branches missed.">        if (!allowUser(auth)) {</span>
+            // Not allowed, so report he's unauthorized
+<span class="nc" id="L364">            res.setHeader(&quot;WWW-Authenticate&quot;, &quot;BASIC realm=\&quot;DoujinSoft Authentication\&quot;&quot;);</span>
+<span class="nc" id="L365">            res.sendError(HttpServletResponse.SC_UNAUTHORIZED);</span>
+<span class="nc" id="L366">            return false;</span>
+        } else {
+<span class="nc" id="L368">            return true;</span>
+        }
+    }
+
+    // This method checks the user information sent in the Authorization
+    // header against the database of users maintained in the users Hashtable.
+    private boolean allowUser(String auth) throws ServletException {
+
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        if (auth == null) {</span>
+<span class="nc" id="L377">            return false; // no auth</span>
+        }
+<span class="nc bnc" id="L379" title="All 2 branches missed.">        if (!auth.toUpperCase().startsWith(&quot;BASIC &quot;)) {</span>
+<span class="nc" id="L380">            return false; // we only do BASIC</span>
+        }
+        // Get encoded user and password, comes after &quot;BASIC &quot;
+<span class="nc" id="L383">        String userpassEncoded = auth.substring(6);</span>
+        // Decode it, using any base 64 decoder
+<span class="nc" id="L385">        String userpassDecoded = new String(Base64.decodeBase64(userpassEncoded));</span>
+
+        // Check against the env var to see if we have access
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        if (!System.getenv().containsKey(&quot;DSOFT_PASS&quot;)) {</span>
+<span class="nc" id="L389">            ServletLog.log(Level.SEVERE, &quot;Environment variable DSOFT_PASS not set, Admin Console will be unavailable.&quot;);</span>
+<span class="nc" id="L390">            throw new ServletException(&quot;Password not set.&quot;);</span>
+        }
+
+<span class="nc bnc" id="L393" title="All 2 branches missed.">        if (userpassDecoded.equals(System.getenv(&quot;DSOFT_PASS&quot;))) {</span>
+<span class="nc" id="L394">            return true;</span>
+        } else {
+<span class="nc" id="L396">            return false;</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

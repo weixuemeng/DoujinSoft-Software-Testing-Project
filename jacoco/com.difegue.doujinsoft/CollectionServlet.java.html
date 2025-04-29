@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CollectionServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">CollectionServlet.java</span></div><h1>CollectionServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.PrintWriter;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import java.util.logging.StreamHandler;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.difegue.doujinsoft.templates.Collection;
+import com.difegue.doujinsoft.utils.CollectionUtils;
+import com.difegue.doujinsoft.utils.TemplateBuilderCollection;
+
+/**
+ * Servlet implementation class for Collections
+ * Collections specify a list of MIO IDs from a JSON file present in
+ * WEB-INF/collections.
+ * From that list, we build and return a page containing only those IDs.
+ */
+@WebServlet(&quot;/collection&quot;)
+public class CollectionServlet extends HttpServlet {
+
+	private static final long serialVersionUID = 1L;
+	private Logger ServletLog;
+
+	/*
+	 * Get the matching Collection object for the requested collection.
+	 */
+	private Collection initCollection(HttpServletRequest request) throws FileNotFoundException {
+
+<span class="nc" id="L41">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L42">		String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+		// Collection name is after the /collection/ part of the URL
+<span class="nc" id="L45">		String collectionName = request.getParameter(&quot;id&quot;);</span>
+
+<span class="nc" id="L47">		String collectionFile = dataDir + &quot;/collections/&quot; + collectionName + &quot;.json&quot;;</span>
+
+<span class="nc bnc" id="L49" title="All 2 branches missed.">		if (new File(collectionFile).exists())</span>
+<span class="nc" id="L50">			return CollectionUtils.GetCollectionFromFile(collectionFile);</span>
+
+<span class="nc" id="L52">		return null;</span>
+	}
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+
+<span class="nc bnc" id="L62" title="All 4 branches missed.">		if (request.getParameterMap().containsKey(&quot;format&quot;) &amp;&amp; request.getParameter(&quot;format&quot;).equals(&quot;json&quot;))</span>
+<span class="nc" id="L63">			response.setContentType(&quot;application/json; charset=UTF-8&quot;);</span>
+		else 
+<span class="nc" id="L65">			response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+
+<span class="nc" id="L67">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L68">		String output = &quot;Collection doesn't exist!&quot;;</span>
+
+		try {
+<span class="nc" id="L71">			Collection c = initCollection(request);</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">			if (c != null)</span>
+<span class="nc" id="L73">				output = new TemplateBuilderCollection(application, request).doStandardPageCollection(c);</span>
+
+<span class="nc" id="L75">			response.getWriter().append(output);</span>
+<span class="nc" id="L76">		} catch (Exception e) {</span>
+
+<span class="nc" id="L78">			StringWriter sw = new StringWriter();</span>
+<span class="nc" id="L79">			PrintWriter pw = new PrintWriter(sw);</span>
+<span class="nc" id="L80">			e.printStackTrace(pw);</span>
+
+<span class="nc" id="L82">			ServletLog.log(Level.SEVERE, sw.toString());</span>
+<span class="nc" id="L83">		}</span>
+<span class="nc" id="L84">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+
+<span class="nc" id="L93">		response.setContentType(&quot;text/html; charset=UTF-8&quot;);</span>
+<span class="nc" id="L94">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="nc" id="L95">		String output = &quot;Who are you running from?&quot;;</span>
+
+		try {
+<span class="nc" id="L98">			Collection c = initCollection(request);</span>
+
+<span class="nc bnc" id="L100" title="All 4 branches missed.">			if (!request.getParameterMap().isEmpty() &amp;&amp; c != null)</span>
+<span class="nc" id="L101">				output = new TemplateBuilderCollection(application, request).doSearchCollection(c);</span>
+
+<span class="nc" id="L103">			response.getWriter().append(output);</span>
+
+<span class="nc" id="L105">		} catch (Exception e) {</span>
+<span class="nc" id="L106">			ServletLog.log(Level.SEVERE, e.getMessage());</span>
+<span class="nc" id="L107">		}</span>
+
+<span class="nc" id="L109">	}</span>
+
+	/**
+	 * @see HttpServlet#HttpServlet()
+	 */
+	public CollectionServlet() {
+<span class="nc" id="L115">		super();</span>
+<span class="nc" id="L116">		ServletLog = Logger.getLogger(&quot;CollectionServlet&quot;);</span>
+<span class="nc" id="L117">		ServletLog.addHandler(new StreamHandler(System.out, new SimpleFormatter()));</span>
+<span class="nc" id="L118">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>

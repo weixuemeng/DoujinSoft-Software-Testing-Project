@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DownloadServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">DoujinSoft Store</a> &gt; <a href="index.source.html" class="el_package">com.difegue.doujinsoft</a> &gt; <span class="el_source">DownloadServlet.java</span></div><h1>DownloadServlet.java</h1><pre class="source lang-java linenums">package com.difegue.doujinsoft;
+
+import com.difegue.doujinsoft.utils.MioCompress;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.net.URLEncoder;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Base64;
+
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.awt.image.Kernel;
+import java.awt.image.ConvolveOp;
+
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+/**
+ * Servlet implementation class DownloadServlet
+ */
+@WebServlet(&quot;/download&quot;)
+public class DownloadServlet extends HttpServlet {
+	private static final long serialVersionUID = 1L;
+
+	/**
+	 * @see HttpServlet#HttpServlet()
+	 */
+	public DownloadServlet() {
+<span class="fc" id="L41">		super();</span>
+<span class="fc" id="L42">	}</span>
+
+	/**
+	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 *      Returns .mio files from the dataDirectory so they can be downloaded, or
+	 *      their image previews.
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+
+		// obtains ServletContext
+<span class="fc" id="L54">		ServletContext application = getServletConfig().getServletContext();</span>
+<span class="fc" id="L55">		String dataDir = application.getInitParameter(&quot;dataDirectory&quot;);</span>
+
+<span class="pc bpc" id="L57" title="1 of 4 branches missed.">		if (request.getParameterMap().containsKey(&quot;type&quot;) &amp;&amp; request.getParameterMap().containsKey(&quot;id&quot;)) {</span>
+
+<span class="fc" id="L59">			String id = request.getParameter(&quot;id&quot;);</span>
+<span class="fc" id="L60">			String type = request.getParameter(&quot;type&quot;);</span>
+<span class="fc" id="L61">			boolean isImageOnly = request.getParameterMap().containsKey(&quot;preview&quot;);</span>
+
+<span class="fc" id="L63">			boolean isGame = type.equals(&quot;game&quot;);</span>
+<span class="fc" id="L64">			boolean isRecord = type.equals(&quot;record&quot;);</span>
+<span class="fc" id="L65">			boolean isManga = type.equals(&quot;manga&quot;);</span>
+
+			// Only serve an image if that's what's asked
+<span class="fc bfc" id="L68" title="All 6 branches covered.">			if (isImageOnly &amp;&amp; (isGame || isManga)) {</span>
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">				String statement = isGame ? &quot;SELECT previewPic, isNsfw FROM Games WHERE hash == ?&quot;</span>
+<span class="fc" id="L71">						: &quot;SELECT frame0 FROM Manga WHERE hash == ?&quot;;</span>
+
+<span class="fc" id="L73">				try (Connection connection = DriverManager</span>
+<span class="fc" id="L74">						.getConnection(&quot;jdbc:sqlite:&quot; + dataDir + &quot;/mioDatabase.sqlite&quot;)) {</span>
+
+<span class="nc" id="L76">					PreparedStatement ret = connection.prepareStatement(statement);</span>
+<span class="nc" id="L77">					ret.setString(1, id);</span>
+<span class="nc" id="L78">					ResultSet result = ret.executeQuery();</span>
+
+<span class="nc" id="L80">					String base64ImageData = result.getString(1).replace(&quot;data:image/png;base64,&quot;, &quot;&quot;);</span>
+<span class="nc" id="L81">					byte[] imageData = Base64.getDecoder().decode(base64ImageData);</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">					if (isGame) {</span>
+<span class="nc" id="L84">						boolean isNsfw = result.getBoolean(2);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">						if (isNsfw) {</span>
+
+							// Blur most of the preview image
+<span class="nc" id="L88">							int radius = 5;</span>
+<span class="nc" id="L89">							int size = radius * 2 + 1;</span>
+<span class="nc" id="L90">							float weight = 1.0f / (size * size);</span>
+<span class="nc" id="L91">							float[] data = new float[size * size];</span>
+
+<span class="nc bnc" id="L93" title="All 2 branches missed.">							for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="nc" id="L94">								data[i] = weight;</span>
+							}
+
+<span class="nc" id="L97">							Kernel kernel = new Kernel(size, size, data);</span>
+<span class="nc" id="L98">							ConvolveOp op = new ConvolveOp(kernel, ConvolveOp.EDGE_NO_OP, null);</span>
+<span class="nc" id="L99">							BufferedImage blurredImage = op.filter(ImageIO.read(new ByteArrayInputStream(imageData)),</span>
+									null);
+
+<span class="nc" id="L102">							ByteArrayOutputStream baos = new ByteArrayOutputStream();</span>
+<span class="nc" id="L103">							ImageIO.write(blurredImage, &quot;png&quot;, baos);</span>
+<span class="nc" id="L104">							imageData = baos.toByteArray();</span>
+						}
+					}
+
+<span class="nc" id="L108">					response.setContentType(&quot;image/png&quot;);</span>
+<span class="nc" id="L109">					response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+
+<span class="nc" id="L111">					OutputStream outStream = response.getOutputStream();</span>
+<span class="nc" id="L112">					outStream.write(imageData);</span>
+<span class="nc" id="L113">					outStream.flush();</span>
+<span class="nc" id="L114">					outStream.close();</span>
+<span class="nc" id="L115">					return;</span>
+
+<span class="fc" id="L117">				} catch (Exception e) {</span>
+<span class="fc" id="L118">					response.setContentType(&quot;image/jpg&quot;);</span>
+<span class="fc" id="L119">					response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+
+<span class="fc" id="L121">					application.getResourceAsStream(&quot;/img/meta.jpg&quot;).transferTo(response.getOutputStream());</span>
+<span class="fc" id="L122">					return;</span>
+				}
+			}
+
+			// Record or failed game/manga fallback preview picture
+<span class="fc bfc" id="L127" title="All 2 branches covered.">			if (isImageOnly) {</span>
+
+<span class="fc" id="L129">				response.setContentType(&quot;image/jpg&quot;);</span>
+<span class="fc" id="L130">				response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+
+<span class="fc" id="L132">				application.getResourceAsStream(&quot;/meta.jpg&quot;).transferTo(response.getOutputStream());</span>
+<span class="fc" id="L133">				return;</span>
+			}
+
+<span class="fc" id="L136">			String filePath = null;</span>
+
+<span class="fc bfc" id="L138" title="All 2 branches covered.">			if (isGame)</span>
+<span class="fc" id="L139">				filePath = dataDir + &quot;/mio/game/&quot; + id + &quot;.miozip&quot;;</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">			else if (isRecord)</span>
+<span class="fc" id="L141">				filePath = dataDir + &quot;/mio/record/&quot; + id + &quot;.miozip&quot;;</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">			else if (isManga)</span>
+<span class="fc" id="L143">				filePath = dataDir + &quot;/mio/manga/&quot; + id + &quot;.miozip&quot;;</span>
+
+<span class="fc bfc" id="L145" title="All 2 branches covered.">			if (filePath != null) {</span>
+
+<span class="fc" id="L147">				File downloadFile = MioCompress.uncompressMio(new File(filePath));</span>
+<span class="fc" id="L148">				FileInputStream inStream = new FileInputStream(downloadFile);</span>
+
+				// gets MIME type of the file
+<span class="fc" id="L151">				String mimeType = &quot;application/octet-stream&quot;;</span>
+				// Set response
+<span class="fc" id="L153">				response.setContentType(mimeType);</span>
+<span class="fc" id="L154">				response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L155">				response.setContentLength((int) downloadFile.length());</span>
+
+				// forces download
+<span class="fc" id="L158">				String headerKey = &quot;Content-Disposition&quot;;</span>
+<span class="fc" id="L159">				String headerValue = String.format(&quot;attachment; filename*=UTF-8''%s&quot;,</span>
+<span class="fc" id="L160">						URLEncoder.encode(downloadFile.getName(), &quot;UTF-8&quot;));</span>
+<span class="fc" id="L161">				response.setHeader(headerKey, headerValue);</span>
+
+				// obtains response's output stream
+<span class="fc" id="L164">				OutputStream outStream = response.getOutputStream();</span>
+
+<span class="fc" id="L166">				byte[] buffer = new byte[4096];</span>
+<span class="fc" id="L167">				int bytesRead = -1;</span>
+
+<span class="fc bfc" id="L169" title="All 2 branches covered.">				while ((bytesRead = inStream.read(buffer)) != -1) {</span>
+<span class="fc" id="L170">					outStream.write(buffer, 0, bytesRead);</span>
+				}
+
+<span class="fc" id="L173">				inStream.close();</span>
+<span class="fc" id="L174">				outStream.close();</span>
+			}
+
+		}
+
+<span class="fc" id="L179">	}</span>
+
+	/**
+	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+	 *      response)
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
+<span class="nc" id="L187">		doGet(request, response);</span>
+<span class="nc" id="L188">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.13.202504020838</span></div></body></html>
