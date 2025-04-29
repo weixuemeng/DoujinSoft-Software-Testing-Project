@@ -1,4 +1,19 @@
-# DoujinSoft
+
+# Software Testing for DoujinSoft
+## Testing artifacts/tools
+* Junit (whitebox and blackbox)
+* Jacoco (report)
+* Machito (mock testing)
+* Selenium (GUI testing)
+* REST Assured (API testing)
+* Docker (deployement)
+* gbalzss (external program for whitebox testing functions)
+
+## How to run
+* run:  `mvn clean test jacoco:report -Dmaven.test.failure.ignore=true` to generate jacoco report regardless of failture
+  
+# Original repo
+## DoujinSoft
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/difegue/doujinsoft.svg)](https://hub.docker.com/r/difegue/doujinsoft/)
 
