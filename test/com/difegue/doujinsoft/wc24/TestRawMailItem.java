@@ -8,7 +8,7 @@ public class TestRawMailItem {
 
     @Test
     @SetEnvironmentVariable(key = "WII_NUMBER", value = "1234567890")
-    @SetEnvironmentVariable(key = "WC24_SERVER", value = "https://test.com")
+    @SetEnvironmentVariable(key = "WC24_SERVER", value = "test.com")
     public void testRenderStringWithLegitWilCode() throws Exception {
         String wilCode = "1234567890123456";
         String raw = "raw";
@@ -18,7 +18,7 @@ public class TestRawMailItem {
 
     @Test
     @SetEnvironmentVariable(key = "WII_NUMBER", value = "1234567890")
-    @SetEnvironmentVariable(key = "WC24_SERVER", value = "https://test.com")
+    @SetEnvironmentVariable(key = "WC24_SERVER", value = "test.com")
     public void testRenderStringWithNotLegitWilCode() {
         String wilCode = "123456"; // not legit (length < 16)
         String raw = "raw";
@@ -26,7 +26,7 @@ public class TestRawMailItem {
     }
 
     @Test
-    @SetEnvironmentVariable(key = "WC24_SERVER", value = "https://test.com")
+    @SetEnvironmentVariable(key = "WC24_SERVER", value = "test.com")
     public void testRenderStringWithNoWiiNumber() {
         String wilCode = "1234567890123456";
         String raw = "raw";
