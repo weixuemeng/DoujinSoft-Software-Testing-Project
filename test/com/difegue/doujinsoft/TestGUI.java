@@ -245,4 +245,25 @@ public class TestGUI {
         String notFoundText = "No more "+ type +".\n" + "Sad.";
         Assertions.assertTrue(contentList.getText().contains(notFoundText));
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"games", "records", "comics"})
+    public void testClickNextPage(String type) {
+        driver.get("https://diy.tvc-16.science/" + type);
+        WebElement nextPageButton = driver.findElement(By.xpath("//*[@id=\"pagination-top\"]/ul/li[10]/a"));
+        WebElement pageOneButton1 = driver.findElement(By.xpath("//*[@id=\"pagination-top\"]/ul/li[2]"));
+        String classValue = pageOneButton1.getAttribute("class");
+        Assertions.assertTrue(classValue != null && classValue.contains("active"));
+        WebElement pageTwoButton = driver.findElement(By.xpath("//*[@id=\"pagination-top\"]/ul/li[3]"));
+        String classValue2 = pageTwoButton.getAttribute("class");
+        Assertions.assertFalse(classValue2 != null && classValue2.contains("active"));
+        Assertions.assertTrue(nextPageButton.isDisplayed());
+        nextPageButton.click();
+        WebElement pageOneButton2 = driver.findElement(By.xpath("//*[@id=\"pagination-top\"]/ul/li[2]"));
+        String classValue3 = pageOneButton2.getAttribute("class");
+        Assertions.assertFalse(classValue3 != null && classValue3.contains("active"));
+        WebElement pageTwoButton2 = driver.findElement(By.xpath("//*[@id=\"pagination-top\"]/ul/li[3]"));
+        String classValue4 = pageTwoButton2.getAttribute("class");
+        Assertions.assertTrue(classValue4 != null && classValue4.contains("active"));
+    }
 }
