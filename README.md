@@ -9,6 +9,10 @@
 * Docker (deployement)
 * gbalzss (external program for whitebox testing functions)
 
+## Presentation slides
+* link: https://docs.google.com/presentation/d/1O-CQgQHoQoWePqwTscBYzVPY50KBHeyiV636DY9TzEY/edit?usp=sharing
+* Also on github named: Software Testing Project Presentation Slides
+  
 ## How to run
 * run:  `mvn clean test jacoco:report -Dmaven.test.failure.ignore=true` to generate jacoco report regardless of failture
   
