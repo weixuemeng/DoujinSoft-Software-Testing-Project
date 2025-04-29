@@ -16,6 +16,9 @@ public class LZSS {
 
     public void LZS_Encode(String filename, String output) throws Exception{
         Runtime rt = Runtime.getRuntime();
+        System.out.println("7");
+        System.out.println(System.getProperty("os.name").toLowerCase());
+        System.out.println(binaryDir);
 
         if (System.getProperty("os.name").toLowerCase().contains("win"))
             rt.exec(binaryDir+"\\gbalzss.exe e "+filename+" "+output).waitFor();

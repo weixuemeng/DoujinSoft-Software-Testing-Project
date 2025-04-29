@@ -44,9 +44,9 @@ public class MailItem {
             // Re-write the diy data to a file that we'll compress with LZSS native
             fos.write(diyData.file);
         }
-
         // Compress the bytes with LZ10/LZSS
         String filePath = compressedMio.toFile().getAbsolutePath();
+
         new LZSS(context).LZS_Encode(filePath, filePath + "d");
         byte[] mioData = Files.readAllBytes(new File(filePath + "d").toPath());
 
@@ -129,9 +129,9 @@ public class MailItem {
      * @throws IOException
      */
     public String renderString(String templatePath) throws PebbleException, IOException {
-
         PebbleEngine engine = new PebbleEngine.Builder().build();
         PebbleTemplate template = null;
+        System.out.println("12");
 
         // Note: The Wii normally expects mails to use CRLF for line endings.
         // Both the RC24 and WL24 mail servers smooth this over, but it's a thing to
@@ -159,6 +159,9 @@ public class MailItem {
                 template = engine.getTemplate(templatePath + ("/record_mail.eml"));
                 break;
         }
+        System.out.println("13");
+        System.out.println(attachmentType);
+        System.out.println("14");
 
         Map<String, Object> context = new HashMap<>();
         context.put("mail", this);
@@ -169,7 +172,6 @@ public class MailItem {
     }
 
     private void initializeFromEnvironment(String recipientCode) throws Exception {
-
         if (!System.getenv().containsKey("WII_NUMBER"))
             throw new Exception(
                     "Wii sender friend number not specified. Please set the WII_NUMBER environment variable.");

@@ -1,5 +1,6 @@
 package com.difegue.doujinsoft.utils;
 
+
 import com.xperia64.diyedit.FileByteOperations;
 import com.xperia64.diyedit.editors.GameEdit;
 import com.xperia64.diyedit.editors.MangaEdit;
@@ -38,7 +39,7 @@ public class MioStorage {
 
     }
 
-    private static String convertByteToHex(byte[] byteData) {
+    public static String convertByteToHex(byte[] byteData) {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < byteData.length; i++) {
@@ -49,7 +50,9 @@ public class MioStorage {
     }
 
     public static void ScanForNewMioFiles(String dataDir, Logger logger) throws SQLException {
+        System.out.println("here");
         File[] files = new File(dataDir + "/mio/").listFiles();
+        System.out.println(dataDir + "/mio/");
 
         for (File f : files) {
             if (!f.isDirectory()) {
@@ -63,10 +66,13 @@ public class MioStorage {
                     String cartridgeId = metadata.getCartridgeId();
                     int type = mioData.length;
                     PreparedStatement insertQuery = parseMioBase(metadata, hash, ID, creatorId, connection, type);
+                    System.out.println(mioData.length);
+
 
                     // The file is game, manga or record, depending on its size.
                     if (mioData.length == MioUtils.Types.GAME) {
                         GameEdit game = new GameEdit(mioData);
+                        System.out.println("game");
 
                         // Game-specific: add the preview picture and isNsfw flag.
                         // CreatorID is added here as it was put in later - ditto for Manga/Records.
@@ -77,6 +83,8 @@ public class MioStorage {
                         insertQuery.setString(13, creatorId);
                         insertQuery.setBoolean(14, false);
                         insertQuery.setString(15, cartridgeId);
+
+                        System.out.println("here");
 
                         logger.log(Level.INFO, "Game;" + hash + ";" + ID + ";" + game.getName() + "\n");
                     }
