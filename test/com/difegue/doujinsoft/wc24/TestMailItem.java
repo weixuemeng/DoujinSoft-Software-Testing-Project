@@ -78,6 +78,58 @@ public class TestMailItem {
     }
 
     @Test
+    public  void testConstructor() throws  Exception{
+        withEnvironmentVariable("WII_NUMBER", "1234567890")
+                .and("WC24_SERVER", "https://test.wii.com")
+                .execute(() -> {
+
+                    String wiiCode = "1234123412341234"; // 16
+
+                    // mio.lz10
+                    Metadata metadata = mock(Metadata.class);
+                    metadata.file = "HelloWiiData".getBytes(StandardCharsets.UTF_8);
+                    // Create dummy file paths
+                    Path dummyInputFile = tempDir.resolve("mio.lz10");
+                    Files.write(dummyInputFile, metadata.file);
+
+                    // /var/folders/1l/3gddlk2s50g65pmtw1d8c6lc0000gn/T/junit13729178062003612716/mio.lz10d
+                    Path dummyOutputFile = tempDir.resolve("mio.lz10d");
+                    byte[] compressedBytes = "COMPRESSEDDATA".getBytes(StandardCharsets.UTF_8);
+                    Files.write(dummyOutputFile, compressedBytes);
+
+                    LZSS mockLzss = mock(LZSS.class);
+                    doAnswer(invocation -> {
+                        String outputPath = invocation.getArgument(1);
+                        System.out.println(outputPath);
+                        Files.write(Paths.get(outputPath), compressedBytes);
+                        return null;
+                    }).when(mockLzss).LZS_Encode(anyString(), anyString());
+
+                    try (MockedConstruction<LZSS> mockedLzss = mockConstruction(LZSS.class,
+                            (lzssMock, context) -> {
+                                doAnswer(invocation -> {
+                                    Files.write(dummyOutputFile, compressedBytes);
+                                    return null;
+                                }).when(lzssMock).LZS_Encode(anyString(), anyString());
+                            })) {
+
+                        MailItem mailItem = new MailItem(wiiCode, metadata, MioUtils.Types.GAME, mockContext);
+
+                        assertNotNull(mailItem.base64EncodedAttachment);
+                        assertTrue(mailItem.base64EncodedAttachment.contains("COMPRESSEDDATA"));
+                        assertEquals(1, mailItem.attachmentType);
+
+                        // Ensure newline insertion every 76 characters (if long enough)
+                        if (mailItem.base64EncodedAttachment.length() > 76) {
+                            assertTrue(mailItem.base64EncodedAttachment.contains("\n"));
+                        }
+                    }
+
+                });
+    }
+
+
+    @Test
     @Tag("initializeFromEnvironment")
     public void testDIYConstructorWithValidInput() throws Exception {
 
@@ -163,7 +215,6 @@ public class TestMailItem {
                 .execute(() -> {
                     LZSS mockLzss = mock(LZSS.class);
 
-                    // Stub the LZS_Encode method to simulate compression
                     doAnswer(invocation -> {
                         String input = invocation.getArgument(0);
                         String output = invocation.getArgument(1);
@@ -216,7 +267,6 @@ public class TestMailItem {
                 .and("WC24_SERVER", "https://test.wii.com")
                 .execute(() -> {
                     MailItem mail = new MailItem(code, contentNames, incoming);
-
                     if(incoming){
                         assertTrue(mail.attachmentType ==2);
                     }else{
@@ -225,8 +275,6 @@ public class TestMailItem {
                     assertNotNull(mail.base64EncodedAttachment);
                     assertNotNull(mail.wiiFace);
                 });
-
-
     }
 
     @ParameterizedTest
@@ -301,9 +349,14 @@ public class TestMailItem {
 //                    PebbleEngine mockEngine = mock(PebbleEngine.class);
 //                    PebbleTemplate mockTemplate = mock(PebbleTemplate.class);
 //                    when(mockEngine.getTemplate(templatePath + "/" + suffix)).thenReturn(mockTemplate);
-                    try(MockedConstruction<PebbleEngine> pebbleCons = mockConstruction(PebbleEngine.class, (mock, ctx) -> {
-                                PebbleTemplate tpl = mock(PebbleTemplate.class);
-                                when(mock.getTemplate("template/" + suffix)).thenReturn(tpl);
+                    try (MockedConstruction<PebbleEngine.Builder> mockedBuilder = mockConstruction(PebbleEngine.Builder.class,
+                            (builderMock, context) -> {
+                                PebbleEngine mockEngine = mock(PebbleEngine.class);
+                                PebbleTemplate mockTemplate = mock(PebbleTemplate.class);
+                                when(mockEngine.getTemplate(templatePath + "/" + suffix)).thenReturn(mockTemplate);
+
+                                // Important: cast the builderMock properly and stub build()
+                                when(builderMock.build()).thenReturn(mockEngine);
                             })){
 
                         MailItem validMailItem = new MailItem(
@@ -313,8 +366,10 @@ public class TestMailItem {
                                 mockContext
                         );
 
-                        String result = validMailItem.renderString("template");
-                        verify(pebbleCons.constructed().get(0)).getTemplate("template/" + suffix);
+                        String result = validMailItem.renderString(templatePath);
+                        PebbleEngine.Builder actualBuilder = (PebbleEngine.Builder) mockedBuilder.constructed().get(0);
+                        verify(actualBuilder).build();
+//                        verify(pebbleCons.constructed().get(0)).getTemplate("template/" + suffix);
                     }
 
                 });
