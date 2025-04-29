@@ -18,6 +18,7 @@
 * run docker: `docker run -e DSOFT_PASS=admin:123456 --mount type=bind,src=/data/folder,dst=/home/doujinsoft -p 127.0.0.1:8080:8080 difegue/doujinsoft`, the src folder is the data folder on the host machine so you need to create one and change its value before running the command; you don't need to change dst folder.
 * For most of the API/GUI tests we use the offical deployment website so you don't need to change their URL value.
 * For TestAdminServlet you need to change ADMIN_USERNAME, ADMIN_PASSWORD, and BASE_URL to the Docker's version. For security reason the password in the repo may not be the updated one.
+* Attention: external package are excluded.
 
 ## Challenges
 * We didn't achieve coverage in Miostorage since the database mocking problem.
